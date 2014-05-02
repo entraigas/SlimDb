@@ -3,7 +3,8 @@ SlimDb
 
 Small db layer around the PDO and PDO statement.
 
-The package goal is to be small and handy, with the basic, commonly used db functions (like select, update, insert and delete).
+The package goal is to be small and handy, with the basic, commonly used 
+db functions (like select, update, insert and delete).
 Currently there's only support for mysql and sqlite.
 
 # Db Setup
@@ -13,7 +14,8 @@ In this example, there are two db settings:
 * the first has 'portal' as connection name, and it's a mysql db.
 * the second has 'admin' as connection name, and it's a sqlite db.
 
-Finally, there is a 'default' connection name configured with the 'portal' value.
+Finally, there is a 'default' connection name configured with the 
+'portal' value.
 
     //database configutation
     $config = array(
@@ -41,8 +43,8 @@ Finally, there is a 'default' connection name configured with the 'portal' value
     }
 
 There are many classes bundled with the package.
-Depending on what you are trying to do, you should use one over the other.
-Here is a list:
+Depending on what you are trying to do, you should use one over the 
+other. Here is a list:
 
 * Runing raw queries: SlimDb or Database classes
 * Fetching data: ResultSet class
@@ -52,8 +54,10 @@ Here is a list:
 
 # Running raw queries
 
-If you want to run raw queries you can use `SlimDb` (which is a static class) or `Database` (which is not static).
-These two classes are just a wrapper around pdo, and will return a `ResultSet` object after a query.
+If you want to run raw queries you can use `SlimDb` (which is a static 
+class) or `Database` (which is not static).
+These two classes are just a wrapper around pdo, and will return a 
+`ResultSet` object after a query.
 
 Examples
 
@@ -69,10 +73,13 @@ Examples
 
 ## Fetching data
 
-Everytime you run a `query()` method, you'll get a `ResultSet` object (which is a wrapper around pdo statement object).
-Now you can use `getAll()`, `getRow()` or `getVal()` methods to retrieve data.
+Everytime you run a `query()` method, you'll get a `ResultSet` object 
+(which is a wrapper around pdo statement object).
+Now you can use `getAll()`, `getRow()` or `getVal()` methods to retrieve 
+data.
 
-Please note: when running raw queries, `ResultSet` objects will return data as an array by default.
+Please note, when running raw queries, `ResultSet` objects will return 
+data as an array by default.
 
 **getAll()** examples
 
@@ -104,10 +111,14 @@ Please note: when running raw queries, `ResultSet` objects will return data as a
 
 # Using the Table class
 
-This class is ment for doing common task in a sigle table without writing raw queries.
-Internally, this class will use `SlimDb::query()` method, so after a `find()` call you'll get a `ResultSet` object.
+This class is ment for doing common task in a sigle table without 
+writing raw queries.
+Internally, this class will use `SlimDb::query()` method, so after a 
+`find()`, `first()`, `insert()`, `update()` or `delete()` call you'll 
+get a `ResultSet` object.
 
-Please note: when using `Table` object, `ResultSet` objects will return data as a `TableRecord` object by default.
+Please note, when using `Table` object, `ResultSet` objects will return 
+data as a `TableRecord` object by default.
 
 **Fetching data** examples
 
@@ -150,7 +161,8 @@ Please note: when using `Table` object, `ResultSet` objects will return data as 
 
 This class it's a small ORM class.
 
-You can change properties values with `set()` method and then push changes to db with `save()` method.
+You can change properties values with `set()` method and then push 
+changes to db with `save()` method.
 
 Example
 
