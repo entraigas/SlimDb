@@ -44,10 +44,10 @@ There are many classes bundled with the package.
 Depending on what you are trying to do, you should use one over the other.
 Here is a list
 
-    * Runing raw queries with SlimDb
-    * Fetching data with ResultSet
-    * Using the Table class
-    * Working with TableRecord class
+* Runing raw queries with SlimDb
+* Fetching data with ResultSet
+* Using the Table class
+* Working with TableRecord class
 
 
 # Running raw queries with SlimDb
