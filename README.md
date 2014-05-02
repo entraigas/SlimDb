@@ -42,15 +42,15 @@ Finally, there is a 'default' connection name configured with the 'portal' value
 
 There are many classes bundled with the package.
 Depending on what you are trying to do, you should use one over the other.
-Here is a list
+Here is a list:
 
-* Runing raw queries with SlimDb
-* Fetching data with ResultSet
-* Using the Table class
-* Working with TableRecord class
+* Runing raw queries: SlimDb or Database classes
+* Fetching data: ResultSet class
+* Working with a single table: Table 
+* ORM: TableRecord class
 
 
-# Running raw queries with SlimDb
+# Running raw queries
 
 If you want to run raw queries you can use `SlimDb` (which is a static class) or `Database` (which is not static).
 These two classes are just a wrapper around pdo, and will return a `ResultSet` object after a query.
@@ -67,7 +67,7 @@ Examples
     $resultSet = $db->query($sql);
 
 
-## Fetching data with ResultSet
+## Fetching data
 
 Everytime you run a `query()` method, you'll get a `ResultSet` object (which is a wrapper around pdo statement object).
 Now you can use `getAll()`, `getRow()` or `getVal()` methods to retrieve data.
