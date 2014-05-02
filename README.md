@@ -11,9 +11,9 @@ Currently only there's only support for mysql and sqlite.
 The configuration it's done using arrays. In this example, there are two db settings: 
 * the first has 'portal' as connection name, and it's a mysql db.
 * the second has 'admin' as connection name, and it's a sqlite db.
-* finally, there is a 'default' connection name configured with the 'portal' value.
 
-    <?php
+Finally, there is a 'default' connection name configured with the 'portal' value.
+
     //database configutation
     $config = array(
         'portal' => array(
@@ -43,7 +43,7 @@ The configuration it's done using arrays. In this example, there are two db sett
 
 There are many classes bundled with the package.
 
-## Running raw queries
+### Running raw queries
 
 If you want to run raw queries you can use `SlimDb` (which is a static class) or `Database` (which is not static).
 These two classes are just a wrapper around pdo, and will return a `ResultSet` object after a query.
@@ -60,13 +60,14 @@ Examples
     $resultSet = $db->query($sql);
 
 
-## Fetching data
+### Fetching data
 
 Everytime you run a `query()` method, you'll get a `ResultSet` object (which is a wrapper around pdo statement object).
 Now you can use `getAll()`, `getRow()` or `getVal()` methods to retrieve data.
+
 Please note: when running raw queries, `ResultSet` objects will return data as an array by default.
 
-Examples
+**getAll()** examples
 
     //fetching several rows from db (low memory consumption)
     $resultSet = $db->query($sql);
@@ -79,24 +80,29 @@ Examples
     foreach($array as $row) {
         print_r($row); //show an array
     }
-    
+
+**getRow()** example
+
     //fetching the 'where id=1' row
     $sql = "select * from customer where id=?";
     $row = $db->query($sql, array(1))->getRow();
     echo $row['id'];
-    
+
+**getVal()** example
+
     //fetching a single value
     $sql = "select count(*) from customer";
     $row = $db->query( $sql )->getVal();
 
 
-## Using the Table class
+### Using the Table class
 
 This class is ment for doing common task in a sigle table without writing raw queries.
 Internally, this class will use `SlimDb::query()` method, so you'll get a `ResultSet` object.
+
 Please note: when using `Table` object, `ResultSet` objects will return data as a stdclass object by default.
 
-Examples
+**Fetching data** examples
 
     //get all rows from customer table
     $resultSet = $db->table('customer')->find();
@@ -115,6 +121,8 @@ Examples
     //get a single row
     $row = $db->table('customer')->first();
     echo $row->id;
+
+**Insert, update, delete** operations
 
     //insert into customer(id,name)
     $data = array( 'name'=>'Jhon Doe' );
