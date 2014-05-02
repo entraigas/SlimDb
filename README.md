@@ -43,7 +43,7 @@ Finally, there is a 'default' connection name configured with the 'portal' value
 
 There are many classes bundled with the package.
 
-### Running raw queries
+## Running raw queries
 
 If you want to run raw queries you can use `SlimDb` (which is a static class) or `Database` (which is not static).
 These two classes are just a wrapper around pdo, and will return a `ResultSet` object after a query.
@@ -60,7 +60,7 @@ Examples
     $resultSet = $db->query($sql);
 
 
-### Fetching data
+## Fetching data with ResultSet class
 
 Everytime you run a `query()` method, you'll get a `ResultSet` object (which is a wrapper around pdo statement object).
 Now you can use `getAll()`, `getRow()` or `getVal()` methods to retrieve data.
@@ -95,26 +95,26 @@ Please note: when running raw queries, `ResultSet` objects will return data as a
     $row = $db->query( $sql )->getVal();
 
 
-### Using the Table class
+## Using the Table class
 
 This class is ment for doing common task in a sigle table without writing raw queries.
-Internally, this class will use `SlimDb::query()` method, so you'll get a `ResultSet` object.
+Internally, this class will use `SlimDb::query()` method, so after a `find()` call you'll get a `ResultSet` object.
 
-Please note: when using `Table` object, `ResultSet` objects will return data as a stdclass object by default.
+Please note: when using `Table` object, `ResultSet` objects will return data as a `TableRecord` object by default.
 
 **Fetching data** examples
 
     //get all rows from customer table
     $resultSet = $db->table('customer')->find();
     foreach($resultSet as $row) {
-        print_r($row); //show a stdclass object
+        print_r($row); //show an object
     }
     echo $resultSet->rowCount(); //returned rows
 
     //get some rows from customer table (where name like '%jhon%')
     $resultSet = $db->table('customer')->find("name like ?", array('%jhon%'));
     foreach($resultSet as $row) {
-        print_r($row); //show a stdclass object
+        print_r($row); //show an object
     }
     echo count($resultSet); //returned rows
 
@@ -124,7 +124,7 @@ Please note: when using `Table` object, `ResultSet` objects will return data as 
 
 **Insert, update, delete** operations
 
-    //insert into customer(id,name)
+    //insert into customer(name) values('Jhon Doe')
     $data = array( 'name'=>'Jhon Doe' );
     $resultSet = $db->table('customer')->insert($data);
     echo $resultSet->lastInsertId();
@@ -139,4 +139,14 @@ Please note: when using `Table` object, `ResultSet` objects will return data as 
     echo $resultSet->rowCount(); //affected rows
 
 
+### Working with TableRecord class
 
+This class it's a small ORM class.
+
+You can change properties values with `set()` method and then push changes to db with `save()` method.
+
+Example
+
+    //get customer id=1 and change it name
+    $customer = $db->table('customer')->first("id=?", array(1));
+    $customer->set('name', 'Jhon Foo')->save();
