@@ -23,13 +23,13 @@ namespace SlimDb;
 class ResultSet  implements \Iterator, \Countable
 {
     /** String current db connection name index */
-    private $config_index = NULL;
+    private $connectionName = NULL;
     
     /** PDO Statement Object current statement */
     private $statement = NULL;
     
     /** Array current query params of the statement */
-    private $sql_params = NULL;
+    private $sqlParams = NULL;
     
     /** String current table */
     private $table = NULL;
@@ -38,7 +38,7 @@ class ResultSet  implements \Iterator, \Countable
     private $rowCount = NULL;
     
     /** Object/array cursor current row */
-    private $current_row = NULL;
+    private $currentRow = NULL;
     
     /** 
      * Return data as...
@@ -46,15 +46,15 @@ class ResultSet  implements \Iterator, \Countable
      * true = return as TableRecord object
      * 'custom string' = return as 'custom string' object
      */
-    private $as_object = false;
+    private $asObject = false;
     
-    public function __construct($config_index, $statement, $sql_params=null)
+    public function __construct($connectionName, $statement, $sqlParams=null)
     {
-        $this->config_index = $config_index;
+        $this->connectionName = $connectionName;
         $this->statement = $statement;
-        $this->sql_params = $sql_params;
+        $this->sqlParams = $sqlParams;
         $this->rowCount = null;
-        $this->as_object = false;
+        $this->asObject = false;
     }
 
     /**
@@ -75,7 +75,7 @@ class ResultSet  implements \Iterator, \Countable
      * @return ResultSet object
      */
     public function asArray(){
-        $this->as_object = false;
+        $this->asObject = false;
         return $this;
     }
     
@@ -86,7 +86,7 @@ class ResultSet  implements \Iterator, \Countable
      * @return ResultSet object
      */
     public function asObject($class=true){
-        $this->as_object = $class;
+        $this->asObject = $class;
         return $this;
     }
     
@@ -96,7 +96,7 @@ class ResultSet  implements \Iterator, \Countable
     public function rewind()
     {
         $this->pointer = 0;
-        $this->current_row = $this->getRow();
+        $this->currentRow = $this->getRow();
     }
 
     public function valid()
@@ -109,7 +109,7 @@ class ResultSet  implements \Iterator, \Countable
 
     public function current()
     {
-        return $this->current_row;
+        return $this->currentRow;
     }
 
     public function key()
@@ -120,7 +120,7 @@ class ResultSet  implements \Iterator, \Countable
     public function next()
     {
         $this->pointer++;
-        $this->current_row = $this->getRow();
+        $this->currentRow = $this->getRow();
     }
 
     /**
@@ -130,7 +130,7 @@ class ResultSet  implements \Iterator, \Countable
      */
     function count()
     {
-        return $this->get_row_count();
+        return $this->getRowCount();
     }
     
     /**
@@ -152,17 +152,17 @@ class ResultSet  implements \Iterator, \Countable
      */
     public function getRow()
     {
-        $as_object = $this->as_object;
+        $asObject = $this->asObject;
         $row = $this->statement->fetch(\PDO::FETCH_ASSOC, \PDO::FETCH_ORI_NEXT);
         if($row===false) return false;
-        if( $as_object===false ) return $row;
-        if( $as_object===true ){
+        if( $asObject===false ) return $row;
+        if( $asObject===true ){
             if( $this->table===null ) return (object) $row;
-            $table = new Table($this->config_index, $this->table);
+            $table = new Table($this->connectionName, $this->table);
             return new TableRecord($table, $row);
         }
         //casting to a particular class
-        $class = $as_object;
+        $class = $asObject;
         return new $class($row);
     }
     
@@ -175,8 +175,8 @@ class ResultSet  implements \Iterator, \Countable
      */
     public function getAll()
     {
-        $as_object = $this->as_object;
-        if($as_object === false)
+        $asObject = $this->asObject;
+        if($asObject === false)
             return $this->statement->fetchAll(\PDO::FETCH_ASSOC);
         //casting to a particular class
         $data = array();
@@ -189,7 +189,7 @@ class ResultSet  implements \Iterator, \Countable
     /**
      * Calculate the affected/returned rows by the query
      */
-    private function get_row_count()
+    private function getRowCount()
     {
         if( $this->rowCount !== null) return $this->rowCount;
         $this->rowCount = 0;
@@ -199,7 +199,7 @@ class ResultSet  implements \Iterator, \Countable
             $this->rowCount = $this->statement->rowCount();
         } else {
             //get the returned rows
-            $this->rowCount = SlimDb::driverCall($this->config_index, 'numRows', $sql, $this->sql_params);
+            $this->rowCount = SlimDb::driverCall($this->connectionName, 'numRows', $sql, $this->sqlParams);
         }
         return $this->rowCount;
     }
@@ -211,7 +211,7 @@ class ResultSet  implements \Iterator, \Countable
      */
     public function rowCount()
     {
-        return $this->get_row_count();
+        return $this->getRowCount();
     }
     
     /**
@@ -253,7 +253,7 @@ class ResultSet  implements \Iterator, \Countable
      */
     public function lastInsertId()
     {
-        return SlimDb::lastInsertId($this->config_index);
+        return SlimDb::lastInsertId($this->connectionName);
     }
     
 }

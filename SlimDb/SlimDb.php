@@ -23,14 +23,14 @@ class SlimDb
 {
     /**
      * array with db settings (config, connection, metadata...)
-     * 'my-test-database' => array(
+     *  'my-test-database' => array(
      *    connection => array with connection data
      *    driver => string with driver name
      *    type => string with driver type (mysql, sqlite...)
      *    pdo => PDOobject
      *    cache-stmt => array with cached PDO statements
      *    metadata => array with metadata (list of tables and table's fields)
-     * );
+     *  );
      */
     static private $config = array();
     
@@ -39,15 +39,59 @@ class SlimDb
     
     /**
      * array that holds driver anonimous functions
-     * 'mysql' => array(
+     *  'mysql' => array(
      *    wrapper => string with quote characters
      *    functions => array with mysql functions here...
-     * );
+     *  );
      */
     static private $driver = array();
     
     /** array with executed queries */
-    static private $query_log = array();
+    static private $queryLog = array();
+
+    ////////////////////////////////////////////////////////////////////
+    //////////////            PSR-0 Autoloader            //////////////
+    ////////////////////////////////////////////////////////////////////
+
+    /**
+     * SlimDb PSR-0 autoloader
+     */
+    public static function autoload($className)
+    {
+        $thisClass = str_replace(__NAMESPACE__.'\\', '', __CLASS__);
+
+        $baseDir = __DIR__;
+
+        if (substr($baseDir, -strlen($thisClass)) === $thisClass) {
+            $baseDir = substr($baseDir, 0, -strlen($thisClass));
+        }
+
+        $className = ltrim($className, '\\');
+        $fileName  = $baseDir;
+        $namespace = '';
+        if ($lastNsPos = strripos($className, '\\')) {
+            $namespace = substr($className, 0, $lastNsPos);
+            $className = substr($className, $lastNsPos + 1);
+            $fileName  .= str_replace('\\', DIRECTORY_SEPARATOR, $namespace) . DIRECTORY_SEPARATOR;
+        }
+        $fileName .= str_replace('_', DIRECTORY_SEPARATOR, $className) . '.php';
+
+        if (file_exists($fileName)) {
+            require $fileName;
+        }
+    }
+
+    /**
+     * Register SlimDb's PSR-0 autoloader
+     */
+    public static function registerAutoloader()
+    {
+        spl_autoload_register(__NAMESPACE__ . "\\SlimDb::autoload");
+    }
+    
+    ////////////////////////////////////////////////////////////////////
+    //////////////             Configuration              //////////////
+    ////////////////////////////////////////////////////////////////////
 
     /**
      * Throw and exception
@@ -62,6 +106,11 @@ class SlimDb
         throw new \Exception("{$method} Error: {$message}");
     }
     
+    /**
+     * Check if the connection name index is valid or not
+     * 
+     * @param $config connection name index
+     */
     public static function isValidConfig($index)
     {
         return isset(self::$config[$index]);
@@ -109,35 +158,9 @@ class SlimDb
             self::$config[$index]['log'] = true;
     }
     
-    /**
-     * Internal function. Load driver
-     */
-    private static function load_driver($index, $type)
-    {
-        $driver_file = sprintf("%s/Driver_%s.php", __DIR__, ucfirst(strtolower($type)) );
-        if( !isset(self::$driver[$type]) && file_exists($driver_file) ){
-            self::$driver[$type]['functions'] = include_once($driver_file);
-            // Initialize driver settings
-            if( isset(self::$driver[$type]['functions']['init']) ){
-                self::driverCall($index, 'init');
-            }
-        }
-    }
-    
-    /**
-     * Get the driver type for the connection name index
-     * 
-     * @param $index string connection name index
-     */
-    public static function getConfigDriver($index)
-    {
-        if( isset(self::$config[$index]['driver']) ){
-            $type = self::$config[$index]['driver'];
-            if( !isset(self::$driver[$type]) ) self::load_driver($index, $type);
-            return $type;
-        }
-        self::exception("Invalid connection name ($index)!", __METHOD__);
-    }
+    ////////////////////////////////////////////////////////////////////
+    //////////////                Loggin                  //////////////
+    ////////////////////////////////////////////////////////////////////
 
     /**
      * Return query log array
@@ -146,13 +169,13 @@ class SlimDb
      */
     public static function getQueryLog()
     {
-        return self::$query_log;
+        return self::$queryLog;
     }
     
     /**
      * Internal function. Write an entry into "queryLog"
      */
-    private static function log_query($index=null, $log_time=NULL, $message='', $sql_params=array())
+    private static function logQuery($index=null, $log_time=NULL, $message='', $sqlParams=array())
     {
         $time = microtime(true);
         if( is_null($index) || is_null($log_time) ){
@@ -161,42 +184,19 @@ class SlimDb
         if( isset(self::$config[$index]['log']) 
             && self::$config[$index]['log']!=true )
         { return; }
-        if( count($sql_params) ){
+        if( count($sqlParams) ){
             // Avoid %format collision for vsprintf
             $message = str_replace("%", "%%", $message);
             // Replace placeholders in the query for vsprintf
             $message = str_replace("?", "'%s'", $message);
-            $message = vsprintf($message, $sql_params);
+            $message = vsprintf($message, $sqlParams);
         }
-        self::$query_log[] = array($time - $log_time, "{$index} - {$message}");
+        self::$queryLog[] = array($time - $log_time, "{$index} - {$message}");
     }
     
-    /**
-     * Database lazy-loading to setup connection only when finally needed
-     */
-    protected static function connect($index)
-    {
-        $config = self::$config[$index]['connection'];
-        extract(self::$config[$index]['connection']);
-        if( !isset($username) ) $username='';
-        if( !isset($password) ) $password='';
-        if( !isset($params) ) $params=array();
-        // Clear config for security reasons
-        self::$config[$index]['connection'] = NULL;
-        
-        // Connect db and configure general settings
-        $time = self::log_query();
-        $pdo = new \PDO($dns, $username, $password, $params);
-        $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-        self::$config[$index]['pdo'] = $pdo;
-        self::log_query($index, $time, "Establish database connection({$index})");
-        
-        //load driver settings
-        $type = self::getConfigDriver($index);
-        if( isset(self::$driver[$type]['functions']['connect']) ){
-            self::driverCall($index, 'connect', $config);
-        }
-    }
+    ////////////////////////////////////////////////////////////////////
+    //////////////           Quote functions              //////////////
+    ////////////////////////////////////////////////////////////////////
 
     /**
      * Set/get the wrapper char used by the qoute methods
@@ -258,6 +258,37 @@ class SlimDb
         return in_array($value,$exceptions) ? $value : sprintf(self::wrapper($index), $value);
     }
 
+    ////////////////////////////////////////////////////////////////////
+    //////////////     Connect and query functions        //////////////
+    ////////////////////////////////////////////////////////////////////
+
+    /**
+     * Database lazy-loading to setup connection only when finally needed
+     */
+    protected static function connect($index)
+    {
+        $config = self::$config[$index]['connection'];
+        extract(self::$config[$index]['connection']);
+        if( !isset($username) ) $username='';
+        if( !isset($password) ) $password='';
+        if( !isset($params) ) $params=array();
+        // Clear config for security reasons
+        self::$config[$index]['connection'] = NULL;
+        
+        // Connect db and configure general settings
+        $time = self::logQuery();
+        $pdo = new \PDO($dns, $username, $password, $params);
+        $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+        self::$config[$index]['pdo'] = $pdo;
+        self::logQuery($index, $time, "Establish database connection({$index})");
+        
+        //load driver settings
+        $type = self::getConfigDriver($index);
+        if( isset(self::$driver[$type]['functions']['connect']) ){
+            self::driverCall($index, 'connect', $config);
+        }
+    }
+
     /**
      * Internal function. Run a sql query and return a PDO Statement
      * 
@@ -276,14 +307,14 @@ class SlimDb
         
         //no need to prepare() & execute()
         if( empty($params) ){
-            $time = self::log_query();
+            $time = self::logQuery();
             $statement = self::$config[$index]['pdo']->query($sql);
-            self::log_query($index, $time, "[Raw query] $sql");
+            self::logQuery($index, $time, "[Raw query] $sql");
             return $statement;
         }
         
         $cacheStmt = isset($extra['cacheStmt']) ? intval($extra['cacheStmt']) : false;
-        $time = self::log_query();
+        $time = self::logQuery();
         // Should we cached PDOStatements? (Best for batch inserts/updates)
         $mesage = '';
         if( $cacheStmt )
@@ -302,7 +333,7 @@ class SlimDb
         }
         
         $statement->execute($params);
-        self::log_query($index, $time, "[{$mesage}] $sql", $params);
+        self::logQuery($index, $time, "[{$mesage}] $sql", $params);
         return $statement;
     }
     
@@ -325,6 +356,40 @@ class SlimDb
             self::exception($e->getMessage(), __METHOD__);
         }
         return $result;
+    }
+
+    ////////////////////////////////////////////////////////////////////
+    //////////////          Driver functions              //////////////
+    ////////////////////////////////////////////////////////////////////
+
+    /**
+     * Internal function. Load driver
+     */
+    private static function loadDriver($index, $type)
+    {
+        $driver_file = sprintf("%s/Driver_%s.php", __DIR__, ucfirst(strtolower($type)) );
+        if( !isset(self::$driver[$type]) && file_exists($driver_file) ){
+            self::$driver[$type]['functions'] = include_once($driver_file);
+            // Initialize driver settings
+            if( isset(self::$driver[$type]['functions']['init']) ){
+                self::driverCall($index, 'init');
+            }
+        }
+    }
+    
+    /**
+     * Get the driver type for the connection name index
+     * 
+     * @param $index string connection name index
+     */
+    public static function getConfigDriver($index)
+    {
+        if( isset(self::$config[$index]['driver']) ){
+            $type = self::$config[$index]['driver'];
+            if( !isset(self::$driver[$type]) ) self::loadDriver($index, $type);
+            return $type;
+        }
+        self::exception("Invalid connection name ($index)!", __METHOD__);
     }
 
     /**
@@ -388,7 +453,7 @@ class SlimDb
 }
 
 /**
- * Envolve to SlimDb
+ * Envolve SlimDb static functions whitin an object
  */
 class Database
 {
@@ -396,10 +461,10 @@ class Database
      * String with current database connection name index
      * Every object must have a valid one
      */
-    protected $config_index = NULL;
+    protected $connectionName = NULL;
 
     /**
-     * Setup the 'config_index' and load driver functions
+     * Setup the 'connectionName' and load driver functions
      * 
      * @param string $index connection name
      */
@@ -409,15 +474,18 @@ class Database
         if( empty($index) ) $index = SlimDb::getDefaultConnection();
         if( empty($index) ) SlimDb::exception("Missing connection name index!");
         if( !SlimDb::isValidConfig($index) ) SlimDb::exception("Invalid connection name index! ({$index})");
-        $this->config_index = $index;
+        $this->connectionName = $index;
     }
     
+    ////////////////////////////////////////////////////////////////////
+    //////////////            Magic Methods               //////////////
+    ////////////////////////////////////////////////////////////////////
     
     public function __call($method, $args)
     {
         $class = __NAMESPACE__ . '\SlimDb';
         if( method_exists($class, $method)) {
-            array_unshift($args, $this->config_index);
+            array_unshift($args, $this->connectionName);
             return forward_static_call_array ("{$class}::{$method}", $args);
             //return call_user_func_array(array($class, $method), $args);
         }
@@ -440,7 +508,7 @@ class Database
     {
         if( !empty($table) )
         {
-            return new Table($this->config_index, $table);
+            return new Table($this->connectionName, $table);
         }
         SlimDb::exception("Table '{$table}' is not valid!", __METHOD__);
     }

@@ -26,23 +26,23 @@ class Table extends Database
     protected $table = NULL;
     
     /** Array that holds query arguments */
-    private $query_args = array();
+    private $queryArgs = array();
     
-    function __construct($config_index, $table)
+    function __construct($connectionName, $table)
     {
-        parent::__construct($config_index);
+        parent::__construct($connectionName);
         $this->table = $table;
         $this->reset_args();
     }
     
     /**
-     * Reset $this->query_args array
+     * Reset $this->queryArgs array
      */
     private function reset_args()
     {
-        $this->query_args = array();
-        $this->query_args['table'] = $this->table;
-        $this->query_args['cacheStmt'] = false;
+        $this->queryArgs = array();
+        $this->queryArgs['table'] = $this->table;
+        $this->queryArgs['cacheStmt'] = false;
     }
     
     /**
@@ -51,7 +51,7 @@ class Table extends Database
      * @param array $params
      * @return array
      */
-    private function build_insert($args)
+    private function buildInsert($args)
     {
         if( !is_array($args['data']) ){
             SlimDb::exception("Invalid data argument. Must be an array!", __METHOD__);
@@ -69,7 +69,7 @@ class Table extends Database
      * @param array $params
      * @return array
      */
-    private function build_update($args)
+    private function buildUpdate($args)
     {
         if( !is_array($args['data']) ){
             SlimDb::exception("Invalid data argument. Must be an array!", __METHOD__);
@@ -96,7 +96,7 @@ class Table extends Database
      * @param array $params
      * @return array
      */
-    private function build_delete($args)
+    private function buildDelete($args)
     {
         $table = $this->quote($args['table']);
         $sql = "DELETE FROM {$table}";
@@ -115,7 +115,7 @@ class Table extends Database
      * @param array $params
      * @return array
      */
-    private function build_select($args)
+    private function buildSelect($args)
     {
         if( !isset($args['columns']) ) $args['columns'] = '*';
         $sql =  isset($args['distinct'])? 'SELECT DISTINCT' : 'SELECT';
@@ -131,12 +131,12 @@ class Table extends Database
         }
         // ORDER BY sorting
         if( isset($args['order']) ){
-            $sql .= $this->build_order_by($args['params']);
+            $sql .= $this->buildOrderBy($args['params']);
         }
         // LIMIT conditions
         if( isset($args['limit']) )
         {
-            $sql .= $this->build_limit($args['offset'], $args['limit']);
+            $sql .= $this->buildLimit($args['offset'], $args['limit']);
         }
         return array($sql, $params);
     }
@@ -147,7 +147,7 @@ class Table extends Database
      * @param array $fields to order by
      * @return string
      */
-    private function build_order_by($fields = NULL)
+    private function buildOrderBy($fields = NULL)
     {
         if( ! $fields) return;
         $sql = ' ORDER BY ';
@@ -164,7 +164,7 @@ class Table extends Database
      * @param array $limit
      * @return string
      */
-    private function build_limit($offset = 0, $limit = 0)
+    private function buildLimit($offset = 0, $limit = 0)
     {
         return $this->driverCall('limit', $offset, $limit);
     }
@@ -176,20 +176,20 @@ class Table extends Database
      */
     private function run()
     {
-        $method = $this->query_args['method'];
+        $method =  strtolower( $this->queryArgs['method'] );
         if( $method=='insert' ||  $method=='update' ||  $method=='delete' )
         {
-            $cacheStmt = (bool) $this->query_args['cacheStmt'];
+            $cacheStmt = (bool) $this->queryArgs['cacheStmt'];
             $extra = array('cacheStmt'=>$cacheStmt);
-            $method = "build_{$method}";
-            list($sql,$params) = $this->$method($this->query_args);
+            $method = "build" . ucfirst($method);
+            list($sql,$params) = $this->$method($this->queryArgs);
             $result = $this->query($sql, $params, $extra);
             $this->reset_args();
             return $result;
         }
         if( $method=='all' ||  $method=='row' ||  $method=='val' )
         {
-            list($sql,$params) = $this->build_select($this->query_args);
+            list($sql,$params) = $this->buildSelect($this->queryArgs);
             if( $method=='val'){
                 $result = $this->query($sql, $params)->getVal();
             }
@@ -215,7 +215,7 @@ class Table extends Database
      */
     public function distinct($bool = true)
     {
-        $this->query_args['distinct'] = $bool;
+        $this->queryArgs['distinct'] = $bool;
         return $this;
     }
     
@@ -224,7 +224,7 @@ class Table extends Database
      */
     public function cacheStmt($bool = true)
     {
-        $this->query_args['cacheStmt'] = $bool;
+        $this->queryArgs['cacheStmt'] = $bool;
         return $this;
     }
     
@@ -236,9 +236,9 @@ class Table extends Database
      */
     public function find($where = NULL, $params = NULL)
     {
-        $this->query_args['method'] = 'all';//'ResultSet';
-        $this->query_args['where'] = $where;
-        $this->query_args['params'] = $params;
+        $this->queryArgs['method'] = 'all';//'ResultSet';
+        $this->queryArgs['where'] = $where;
+        $this->queryArgs['params'] = $params;
         return $this->run();
     }
     
@@ -250,11 +250,11 @@ class Table extends Database
      */
     public function first($where = NULL, $params = NULL)
     {
-        $this->query_args['method'] = 'row';
-        $this->query_args['where'] = $where;
-        $this->query_args['params'] = $params;
-        $this->query_args['limit'] = 1;
-        $this->query_args['offset'] = 0;
+        $this->queryArgs['method'] = 'row';
+        $this->queryArgs['where'] = $where;
+        $this->queryArgs['params'] = $params;
+        $this->queryArgs['limit'] = 1;
+        $this->queryArgs['offset'] = 0;
         return $this->run();
     }
     
@@ -266,10 +266,10 @@ class Table extends Database
      */
     public function count($where = NULL, $params = NULL)
     {
-        $this->query_args['method'] = 'val';
-        $this->query_args['columns'] = 'count(*)';
-        $this->query_args['where'] = $where;
-        $this->query_args['params'] = $params;
+        $this->queryArgs['method'] = 'val';
+        $this->queryArgs['columns'] = 'count(*)';
+        $this->queryArgs['where'] = $where;
+        $this->queryArgs['params'] = $params;
         return $this->run();
     }
     
@@ -281,10 +281,10 @@ class Table extends Database
      */
     public function update($data, $where = NULL, $params = NULL)
     {
-        $this->query_args['method'] = 'update';
-        $this->query_args['data'] = $data;
-        $this->query_args['where'] = $where;
-        $this->query_args['params'] = $params;
+        $this->queryArgs['method'] = 'update';
+        $this->queryArgs['data'] = $data;
+        $this->queryArgs['where'] = $where;
+        $this->queryArgs['params'] = $params;
         return $this->run();
     }
 
@@ -296,9 +296,9 @@ class Table extends Database
      */
     public function delete($where = NULL, $params = NULL)
     {
-        $this->query_args['method'] = 'delete';
-        $this->query_args['where'] = $where;
-        $this->query_args['params'] = $params;
+        $this->queryArgs['method'] = 'delete';
+        $this->queryArgs['where'] = $where;
+        $this->queryArgs['params'] = $params;
         return $this->run();
     }
     
@@ -310,8 +310,8 @@ class Table extends Database
      */
     public function insert(array $data)
     {
-        $this->query_args['method'] = 'insert';
-        $this->query_args['data'] = $data;
+        $this->queryArgs['method'] = 'insert';
+        $this->queryArgs['data'] = $data;
         return $this->run();
     }
 
@@ -320,7 +320,7 @@ class Table extends Database
      */
     public function schema()
     {
-        return SlimDb::schema($this->config_index, $this->table);
+        return SlimDb::schema($this->connectionName, $this->table);
     }
     
     /**
