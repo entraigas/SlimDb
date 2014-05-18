@@ -18,35 +18,29 @@ Finally, there is a 'default' connection name configured with the
 'portal' value.
 
     //database configutation
-    $config = array(
-        'portal' => array(
-            'dns' => "mysql:host=127.0.0.1;port=3306;dbname=testdb",
-            'username' => 'user',
-            'password' => 'secret',
-            'charset' => 'UTF8',
-            'log' => TRUE,
-        ),
-        'admin' => array(
-            'dns' => "sqlite:/path/to/sqlite.db",
-            'log' => TRUE,
-        ),
-        'default' => 'portal',
+    $portal = array(
+		'dns' => "mysql:host=127.0.0.1;port=3306;dbname=testdb",
+		'username' => 'user',
+		'password' => 'secret',
+		'charset' => 'UTF8',
+		'log' => TRUE,
+	);
+	$admin => array(
+		'dns' => "sqlite:/path/to/sqlite.db",
+		'log' => TRUE,
     );
 
     //initialize SlimDb
-    foreach($config as $index=>$setting){
-        if(is_array($setting)){
-            \SlimDb\SlimDb::configure($index, $setting);
-        }elseif($index==='default'){
-            \SlimDb\SlimDb::setDefaultConnection($setting);
-        }
-    }
+	\SlimDb\SlimDb::configure('portal', $portal);
+	\SlimDb\SlimDb::configure('admin', $admin);
+	//set the default connection
+	\SlimDb\SlimDb::setDefaultConnection('portal');
 
 There are many classes bundled with the package.
 Depending on what you are trying to do, you should use one over the 
 other. Here is a list:
 
-* Runing raw queries: SlimDb or Database classes
+* Running raw queries: SlimDb or Database classes
 * Fetching data: ResultSet class
 * Working with a single table: Table 
 * ORM: TableRecord class
@@ -66,8 +60,8 @@ Examples
     //static example
     $resultSet = \SlimDb\SlimDb::query('portal', $sql);
     
-    //non static example
-    $db = \SlimDb\Database(); //by default use 'portal' db
+    //non static example using the default connection (portal)
+    $db = \SlimDb\Database();
     $resultSet = $db->query($sql);
 
 
