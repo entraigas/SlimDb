@@ -102,5 +102,11 @@ return array(
     'numRows' => function ($index, $sql, $params){
         $sql_count = "SELECT count(*) FROM ({$sql}) AS tmp";
         return (int) self::query($index, $sql_count, $params)->getVal();
+    },
+    
+    //truncate
+    'truncate' => function($index, $table){
+        self::query($index, " TRUNCATE TABLE ?", array($table));
     }
+
 );

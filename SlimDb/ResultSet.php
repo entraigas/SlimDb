@@ -34,6 +34,9 @@ class ResultSet  implements \Iterator, \Countable
     /** String current table */
     private $table = NULL;
     
+    /** String current extract method */
+    private $get = NULL;
+    
     /** Integer total affected/returned rows by the query */
     private $rowCount = NULL;
     
@@ -54,7 +57,6 @@ class ResultSet  implements \Iterator, \Countable
         $this->statement = $statement;
         $this->sqlParams = $sqlParams;
         $this->rowCount = null;
-        $this->asObject = false;
     }
 
     /**
@@ -69,14 +71,19 @@ class ResultSet  implements \Iterator, \Countable
         return $this;
     }
     
+    public function setCallback($method='getAll')
+    {
+        $this->get = strtolower($method);
+        return $this;
+    }
+    
     /**
      * Configure the default return type as array
      * 
      * @return ResultSet object
      */
     public function asArray(){
-        $this->asObject = false;
-        return $this;
+        return $this->{$this->get}(false);
     }
     
     /**
@@ -86,8 +93,7 @@ class ResultSet  implements \Iterator, \Countable
      * @return ResultSet object
      */
     public function asObject($class=true){
-        $this->asObject = $class;
-        return $this;
+        return $this->{$this->get}($class);
     }
     
     /*
@@ -150,9 +156,8 @@ class ResultSet  implements \Iterator, \Countable
      *
      * @return object|array
      */
-    public function getRow()
+    public function getRow($asObject = false)
     {
-        $asObject = $this->asObject;
         $row = $this->statement->fetch(\PDO::FETCH_ASSOC, \PDO::FETCH_ORI_NEXT);
         if($row===false) return false;
         if( $asObject===false ) return $row;
@@ -173,14 +178,13 @@ class ResultSet  implements \Iterator, \Countable
      * @param array $params the optional prepared query params
      * @return array array of objects|arrays
      */
-    public function getAll()
+    public function getAll($asObject = false)
     {
-        $asObject = $this->asObject;
         if($asObject === false)
             return $this->statement->fetchAll(\PDO::FETCH_ASSOC);
         //casting to a particular class
         $data = array();
-        foreach($this as $row){
+        while( $row = $this->getRow($asObject) ){
             $data[] = $row;
         }
         return $data;
@@ -220,7 +224,6 @@ class ResultSet  implements \Iterator, \Countable
      * @param string $method
      * @param array $params
      * @return ResultSet object
-     */
     public function __call($method, $params = array()) {
         foreach($this as $object){
             if( !is_object($object) ){
@@ -230,6 +233,7 @@ class ResultSet  implements \Iterator, \Countable
         }
         return $this;
     }
+     */
     
     /**
      * Apply a user function to all objects in a result set.

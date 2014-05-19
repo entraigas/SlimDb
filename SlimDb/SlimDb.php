@@ -184,14 +184,20 @@ class SlimDb
         if( isset(self::$config[$index]['log']) 
             && self::$config[$index]['log']!=true )
         { return; }
+        $message = self::parseQuery($message, $sqlParams);
+        self::$queryLog[] = array($time - $log_time, "{$index} - {$message}");
+    }
+    
+    private static function parseQuery($sql, $sqlParams)
+    {
         if( count($sqlParams) ){
             // Avoid %format collision for vsprintf
-            $message = str_replace("%", "%%", $message);
+            $sql = str_replace("%", "%%", $sql);
             // Replace placeholders in the query for vsprintf
-            $message = str_replace("?", "'%s'", $message);
-            $message = vsprintf($message, $sqlParams);
+            $sql = str_replace("?", "'%s'", $sql);
+            $sql = vsprintf($sql, $sqlParams);
         }
-        self::$queryLog[] = array($time - $log_time, "{$index} - {$message}");
+        return $sql;
     }
     
     ////////////////////////////////////////////////////////////////////
@@ -353,7 +359,8 @@ class SlimDb
             $statement = self::run_query($index, $sql, $params, $extra);
             $result = new ResultSet($index, $statement, $params);
         } catch (\Exception $e){
-            self::exception($e->getMessage(), __METHOD__);
+            $sql = self::parseQuery($sql, $params);
+            self::exception($e->getMessage() . $sql, __METHOD__);
         }
         return $result;
     }

@@ -31,6 +31,9 @@ class TableRecord implements \Countable, \IteratorAggregate
     /** Array with dirty row data */
     protected $dirty = array();
 
+    /** bool flag */
+    protected $saved = true;
+
     function __construct( $table, array $data = array() )
     {
         $this->table = $table;
@@ -95,7 +98,7 @@ class TableRecord implements \Countable, \IteratorAggregate
             return $this->__set($args[0], $args[1]);
         }
         if( count($args)===1 ){
-            foreach($args as $key=>$value){
+            foreach($args[0] as $key=>$value){
                 if(is_string($key) && !is_array($value)){
                     $this->__set($key, $value);
                 }
@@ -137,7 +140,10 @@ class TableRecord implements \Countable, \IteratorAggregate
         //is it an update?
         if( isset($this->data[$pkName]) ){
             $this->table->update($this->dirty, "{$pkName}=?", array($this->data[$pkName]) );
-            $merged_data[$pkName] = $this->data[$pkName];
+            $merged_data = array_merge(
+                $this->array_diff_schema($this->data),
+                $this->array_diff_schema($this->dirty)
+            );
         } else {
             //it's an insert
             $merged_data = array_merge(
@@ -191,13 +197,26 @@ class TableRecord implements \Countable, \IteratorAggregate
     }
     
     /**
+     * Delete object from db
+     */
+    public function delete()
+    {
+        $pkName = $this->pkName();
+        if( !isset($this->data[$pkName]) ){
+            return false;
+        }
+        $this->table->delete("{$pkName}=?", array($this->data[$pkName]) );
+        $this->reset();
+    }
+
+    /**
      * Private function. Filter an array returning only the schema fields
      */
     private function array_diff_schema(array $array)
     {
-        $schema = $this->schema();
+        $cols = $this->table->cols();
         $retval = array();
-        foreach($schema as $field => $metadata){
+        foreach($cols as $field){
             if( isset($array[$field]) )
                 $retval[$field] = $array[$field];
         }

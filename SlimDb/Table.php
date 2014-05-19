@@ -131,7 +131,7 @@ class Table extends Database
         }
         // ORDER BY sorting
         if( isset($args['order']) ){
-            $sql .= $this->buildOrderBy($args['params']);
+            $sql .= $this->buildOrderBy($args['order']);
         }
         // LIMIT conditions
         if( isset($args['limit']) )
@@ -152,7 +152,13 @@ class Table extends Database
         if( ! $fields) return;
         $sql = ' ORDER BY ';
         // Add each order clause
-        foreach($fields as $key => $value) $sql .= $this->quote($key) . " $value, ";
+        if( !is_array($fields) ) $fields = array($fields);
+        foreach($fields as $key => $value){
+            if( is_int($key) )
+                $sql  .= $this->quote($value) . " , ";
+            else
+                $sql  .= $this->quote($key) . " $value, ";
+        }
         // Remove ending ", "
         return substr($sql, 0, -2);
     }
@@ -196,13 +202,12 @@ class Table extends Database
             if( $method=='row'){
                 $result = $this->query($sql, $params)
                     ->setTable($this->table)
-                    ->asObject(true)
-                    ->getRow();
+                    ->setCallback('getRow');
             }
             if( $method=='all' ){
                 $result = $this->query($sql, $params)
                     ->setTable($this->table)
-                    ->asObject();
+                    ->setCallback('getAll');
             }
             $this->reset_args();
             return $result;
@@ -229,6 +234,40 @@ class Table extends Database
     }
     
     /**
+     * Setup order by clause
+     *
+     * @param array $fields
+     */
+    public function fields($fields)
+    {
+        $this->queryArgs['columns'] = $fields;
+        return $this;
+    }
+    
+    /**
+     * Setup order by clause
+     *
+     * @param array $fields
+     */
+    public function orderBy($fields)
+    {
+        $this->queryArgs['order'] = $fields;
+        return $this;
+    }
+    
+    /**
+     * Setup limit clause
+     *
+     * @param array $fields
+     */
+    public function limit($limit, $offset = 0)
+    {
+        $this->queryArgs['limit'] = $limit;
+        $this->queryArgs['offset'] = $offset;
+        return $this;
+    }
+    
+    /**
      * Run a select and return an array of objects
      *
      * @param array $where
@@ -236,7 +275,7 @@ class Table extends Database
      */
     public function find($where = NULL, $params = NULL)
     {
-        $this->queryArgs['method'] = 'all';//'ResultSet';
+        $this->queryArgs['method'] = 'all';
         $this->queryArgs['where'] = $where;
         $this->queryArgs['params'] = $params;
         return $this->run();
