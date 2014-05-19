@@ -17,6 +17,11 @@
  */
 
 return array(
+    //check PDO
+    'checkPDO' => function(){
+        return extension_loaded('pdo_mysql');
+    },
+
     // Initialize default driver settings after Database contructor
     'init' => function($index){
         // MySQL uses a non-standard column identifier

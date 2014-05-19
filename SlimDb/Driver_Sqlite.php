@@ -17,6 +17,11 @@
  */
 
 return array(
+    //check PDO
+    'checkPDO' => function(){
+        return extension_loaded('pdo_sqlite');
+    },
+
     // Initialize default driver settings after Database contructor
     'init' => function($index){
         self::wrapper($index, '[%s]');
