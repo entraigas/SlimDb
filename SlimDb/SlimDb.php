@@ -224,7 +224,7 @@ class SlimDb
      * @param  array  $columns
      * @return string
      */
-    public function quoteColumns($index, $columns)
+    public static function quoteColumns($index, $columns)
     {
         if( !is_array($columns) ) $columns = array($columns);
         //return implode(', ', array_map(array($this, 'quote'), $columns));
@@ -273,6 +273,15 @@ class SlimDb
      */
     protected static function connect($index)
     {
+        //check PDO extension
+        if (!defined('\PDO::ATTR_DRIVER_NAME')) {
+            self::exception('PDO not available!', __METHOD__);
+        }
+        $driver = self::$config[$index]['driver'];
+        if( !self::driverCall($index, 'checkPDO') ){
+            self::exception("PDO {$driver} extension not available!", __METHOD__);
+        }
+        
         $config = self::$config[$index]['connection'];
         extract(self::$config[$index]['connection']);
         if( !isset($username) ) $username='';
@@ -360,7 +369,7 @@ class SlimDb
             $result = new ResultSet($index, $statement, $params);
         } catch (\Exception $e){
             $sql = self::parseQuery($sql, $params);
-            self::exception($e->getMessage() . $sql, __METHOD__);
+            self::exception($e->getMessage() . " - $sql", __METHOD__);
         }
         return $result;
     }
