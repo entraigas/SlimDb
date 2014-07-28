@@ -29,7 +29,7 @@ data as an array.
 
     //fetching a single value
     $sql = "select count(*) from customer";
-    $resultSet = $db->query( $sql )->getVal();
+    $resultSet = $db->query( $sql );
     $totalCustomers = $resultSet->getVal();
     //$totalCustomers = $db->query( $sql )->getVal(); //same result in 1 line
 

@@ -6,8 +6,9 @@ Note: internally, this class will use `SlimDb::query()` method.
 
 **Running Select queries**
 
-Syntax: $recordSet = $db->table('user')
-			[distinct(), ->select(), join(), where(), limit()]
+Syntax: 
+		$recordSet = $db->table('user')
+			[distinct(),select(), join(), where(), limit()]
 			->run();
 
 Below it's a comparison between Table class & Database class select query.
@@ -38,52 +39,72 @@ Below it's a comparison between Table class & Database class select query.
     //get all rows from customer table
     $resultSet = $db->table('customer')->run();
     foreach($resultSet as $row) {
-        print_r($row); //show an object
+        print_r($row);
     }
     echo $resultSet->rowCount(); //returned rows
 
     //get some rows from customer table (where name like '%jhon%')
     $resultSet = $db->table('customer')->where("name like ?", array('%jhon%'))->run();
     foreach($resultSet as $row) {
-        print_r($row); //show an object
+        print_r($row);
     }
     echo count($resultSet); //returned rows
-
-    //get a single row
-    $row = $db->table('customer')->first();
-    echo $row->id;
+	
+	//change the returned format
+    $resultSet = $db->table('customer')->run();
+	//$resultSet->asArray(); //change the default format to array (default)
+	$resultSet->asObject(); //change the default format to objects
+	//$resultSet->asOrm(); //change the default format to Orm objects
+	print_r($resultSet->getAll());
 
 **Insert, update, delete operations**
 
-    //insert into customer(name) values('Jhon Doe')
-    $data = array( 'name'=>'Jhon Doe' );
-    $resultSet = $db->table('customer')->insert($data)->run();
+    //insert into customer(name,age) values('Jhon Doe',18)
+    $data = array( 
+		'name'=>'Jhon Doe',
+		'age'=>18
+	);
+    $resultSet = $db->table('customer')
+		->insert($data)
+		->run();
     echo $resultSet->lastInsertId();
 	echo $resultSet->rowCount(); //affected rows
     
     //update customer where id=1 set name='Jhon Doe'
     $data = array( 'name'=>'Jhon Doe' );
-    $resultSet = $db->table('customer')->update($data, "id=?", array(1))->run();
+    $resultSet = $db->table('customer')
+		->update($data)
+		->where("id=?", array(1))
+		->run();
     echo $resultSet->rowCount(); //affected rows
 
     //delete where id=1 or category=9
-    $db->table('customer')->delete("id=? or category=?", array(1, 9))->run();
+    $db->table('customer')
+		->delete()
+		->where("id=? or category=?", array(1, 9))
+		->run();
     echo $resultSet->rowCount(); //affected rows
 
 **Select short-cuts operations**
+
 Note: The short-cut methods makes an implicit call to `run()`.
 
-`first()`  method
+`first()`  method.
 This method return a RecordSet object.
-`First("id = 1")` it's equal to `where("id = 1")->run()`. Example:
+`First("id = 1")` it's equal to `where("id = 1")->limit(1)->run()`. Example:
 
 	//classic way
-	$row = $db->table('customer')->where("id = 1")->run()->getRow();
+	$row = $db->table('customer')
+		->where("id = 1")
+		->limit(1)
+		->run()
+		->getRow();
 	//short-cut
 	$row = $db->table('customer')->first("id = 1")->getRow();
 
-`count()`  method
-This method return an integer value. Example:
+`count()`  method.
+This method return an integer value. 
+Example:
 
 	//select count(*) from customer
 	$total = $db->table('customer')->count();
