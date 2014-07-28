@@ -122,6 +122,7 @@ Example:
 
 	//get the first 10 customers from company id = 1, ordered by customer's name.
 	$result = Db()->table('customer')
+		->distinct()
 		->select("customer.*, company.name")
 		->join('company', 'company.id = customer.id')
 		->where('company.name like ?', array("%acme%"))
