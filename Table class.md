@@ -7,9 +7,10 @@ Note: internally, this class will use `SlimDb::query()` method.
 **Running Select queries**
 
 Syntax: 
-		$recordSet = $db->table('user')
-			[distinct(),select(), join(), where(), limit()]
-			->run();
+
+$recordSet = $db->table('user')
+	[distinct(),select(), join(), where(), limit()]
+	->run();
 
 Below it's a comparison between Table class & Database class select query.
 
@@ -24,8 +25,11 @@ Below it's a comparison between Table class & Database class select query.
 	$table = $db->table('customer');
 	$resultSet = $table->where("id = 1")->run();
 	$row = $resultSet->getRow();
-	//same result in 1 line
-	$row = $db->table('customer')->where("id = 1")->run()->getRow();
+	//alterntive syntax
+	$row = $db->table('customer')
+		->where("id = 1")
+		->run()
+		->getRow();
 	
 	//fetching a multiples rows using Database class
 	$sql = "select * from customer";
@@ -44,7 +48,9 @@ Below it's a comparison between Table class & Database class select query.
     echo $resultSet->rowCount(); //returned rows
 
     //get some rows from customer table (where name like '%jhon%')
-    $resultSet = $db->table('customer')->where("name like ?", array('%jhon%'))->run();
+    $resultSet = $db->table('customer')
+		->where("name like ?", array('%jhon%'))
+		->run();
     foreach($resultSet as $row) {
         print_r($row);
     }
@@ -116,8 +122,9 @@ Example:
 
 	//get the first 10 customers from company id = 1, ordered by customer's name.
 	$result = Db()->table('customer')
+		->select("customer.*, company.name")
 		->join('company', 'company.id = customer.id')
-		->where('company.id = ?', array(1))
+		->where('company.name like ?', array("%acme%"))
 		->orderBy('customer.name')
 		->limit(10)
 		->run();
