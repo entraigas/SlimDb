@@ -22,13 +22,9 @@ return array(
         return extension_loaded('pdo_sqlite');
     },
 
-    // Initialize default driver settings after Database contructor
+    // Initialize default driver settings after Database constructor
     'init' => function($index){
-        self::wrapper($index, '[%s]');
-    },
-    
-    // Function to setup default charset
-    'connect' => function ($index, $config){
+        self::_setWrapper($index, '[%s]');
     },
     
     // List all tables.

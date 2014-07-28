@@ -17,15 +17,10 @@
  */
 
 return array(
-    //check PDO
-    'checkPDO' => function(){
-        return extension_loaded('pdo_mysql');
-    },
-
-    // Initialize default driver settings after Database contructor
+    // Initialize default driver settings after Database constructor
     'init' => function($index){
         // MySQL uses a non-standard column identifier
-        self::wrapper($index, '`%s`');
+        self::_setWrapper($index, '`%s`');
     },
     
     // Build a limit clause
@@ -42,14 +37,6 @@ return array(
             return " LIMIT {$offset}, {$limit}";
         if( $offset==0 && $limit>0 )
             return " LIMIT {$limit}";        
-    },
-    
-    // Run this code right after PDO connection (setup default charset)
-    'connect' => function ($index, $config){
-        // If a character set has been specified
-        if (isset($config['charset'])){
-            self::query($index, "SET NAMES '{$config['charset']}'");
-        }
     },
     
     // List all tables from database
