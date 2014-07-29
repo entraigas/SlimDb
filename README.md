@@ -7,6 +7,18 @@ The package goal is to be small and handy, with the basic, commonly used
 db functions (like select, update, insert and delete).
 Currently there's only support for mysql and sqlite.
 
+# Installing the package
+
+You can download the package directly from [GitHub](https://github.com/entraigas/SlimDb)
+Or install it using `composer.json` file
+
+	{
+		"require": {
+			"entraigas/slimdb": "v1.2.1"
+		}
+	}
+
+
 # Db Setup
 
 The configuration it's done using arrays.
