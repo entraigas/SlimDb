@@ -90,7 +90,7 @@ class ResultSet  implements \Iterator, \Countable
     public function next()
     {
         $this->pointer++;
-        $this->currentRow = $this->getRow($this->returnAs);
+        $this->currentRow = $this->getRow();
     }
 
     /**
@@ -136,9 +136,9 @@ class ResultSet  implements \Iterator, \Countable
         return $this;
     }
 
-    public function asObject()
+    public function asObject($className=null)
     {
-        $this->returnAs = self::AS_OBJECT;
+        $this->returnAs = $className==null? self::AS_OBJECT : $className;
         return $this;
     }
 

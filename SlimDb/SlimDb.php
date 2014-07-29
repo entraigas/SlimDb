@@ -246,7 +246,7 @@ class SlimDb
      * Quote a value in keyword identifiers.
      *
      * @param string $connectionName
-     * @param  string  $value
+     * @param string $value
      * @return string
      */
     public static function quote($connectionName, $value)
@@ -266,7 +266,7 @@ class SlimDb
      * Quote a single part value in keyword identifiers.
      *
      * @param string $connectionName
-     * @param  string  $value
+     * @param string $value
      * @return string
      */
     public static function quoteValue($connectionName, $value)
@@ -302,7 +302,7 @@ class SlimDb
      * @param string $sql query to run
      * @param array $params the prepared query params
      * @param array $extra additional configuration data
-     * @return PDOStatement
+     * @return PDOStatement object
      */
     protected static function _run_query($connectionName, $sql, array $params = NULL, $extra = array() )
     {
@@ -349,7 +349,7 @@ class SlimDb
      * @param string $sql query to run
      * @param array $params the prepared query params
      * @param array $extra additional configuration data
-     * @return ResultSet
+     * @return ResultSet object
      */
     public static function query($connectionName, $sql, array $params = NULL, $extra = array())
     {
@@ -386,6 +386,7 @@ class SlimDb
      * Get the driver type for the connection name index
      * 
      * @param $connectionName string connection name index
+     * @return string
      */
     public static function getConfigDriver($connectionName)
     {
@@ -398,11 +399,12 @@ class SlimDb
     }
 
     /**
-     * Call a driver function
-     * 
+     * Call a driver function.
      * Expect at least 2 parameters.
+     *
      * @param string $connectionName connection name
      * @param string $method method name
+     * @return mixed
      */
     public static function driverCall()
     {
@@ -430,18 +432,20 @@ class SlimDb
      * Return last-insert-id value
      * 
      * @param string $connectionName connection name
+     * @return integer
      */
     public static function lastInsertId($connectionName)
     {
         return self::$config[$connectionName]['pdo']->lastInsertId();
     }
-    
+
     /**
      * Return database or table schema (and cache it for performance)
-     * 
+     *
      * @param string $connectionName connection name
      * @param string $table table name
      * @param bool $force_reload force reload schema
+     * @return array
      */
     public static function schema($connectionName, $table=NULL, $force_reload=false)
     {
@@ -483,7 +487,7 @@ class SlimDb
 }
 
 /**
- * Envolve SlimDb static functions whitin an object
+ * Wrap up SlimDb static functions within an object
  */
 class Database
 {
@@ -519,7 +523,7 @@ class Database
             return forward_static_call_array ("{$class}::{$method}", $args);
             //return call_user_func_array(array($class, $method), $args);
         }
-        SlimDb::exception("Invalid metod! ({$method})", __METHOD__);
+        SlimDb::exception("Invalid method! ({$method})", __METHOD__);
     }
     
     public static function __callStatic($method, $args)
@@ -528,7 +532,7 @@ class Database
         if(method_exists($class, $method)) {
             return call_user_func_array("{$class}::{$method}", $args);
         }
-        SlimDb::exception("Invalid static metod! ({$method})", __METHOD__);
+        SlimDb::exception("Invalid static method! ({$method})", __METHOD__);
     }
     
 }

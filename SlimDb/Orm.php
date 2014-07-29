@@ -157,7 +157,7 @@ class Orm implements \Countable, \IteratorAggregate
                     ->run();
             $pk = $this->pkName();
             if( !isset($merged_data[$pk]) ){
-                //$merged_data[$pk] = $this->tableObj->lastInsertId();
+                $merged_data[$pk] = $this->tableObj->lastInsertId();
             }
         }
         $this->reset($merged_data);
