@@ -15,46 +15,6 @@ Examples
     $resultSet = $db->query($sql);
 
 
-# Fetching data
-
-Every time you run a `query()` method, you'll get a `ResultSet` object 
-(which is a wrapper around pdo statement object).
-Now you can use `getAll()`, `getRow()` or `getVal()` methods to retrieve 
-data.
-
-Please note, when running raw queries, `ResultSet` objects will return 
-data as an array.
-
-**getVal() example**
-
-    //fetching a single value
-    $sql = "select count(*) from customer";
-    $resultSet = $db->query( $sql );
-    $totalCustomers = $resultSet->getVal();
-    //$totalCustomers = $db->query( $sql )->getVal(); //same result in 1 line
-
-**getRow() example**
-
-    //fetching the 'where id=1' row
-    $sql = "select * from customer where id=?";
-    $row = $db->query($sql, array(1))->getRow();
-    print_r($row);
-
-**getAll() examples**
-
-    //fetching several rows from db (low memory consumption)
-    $resultSet = $db->query($sql);
-    foreach($resultSet as $row) {
-        print_r($row);
-    }
-    
-	//fetching several rows from db into an array
-    $sql = "select * from customer";
-	$array = $db->query($sql)->getAll();
-    foreach($array as $row) {
-        print_r($row);
-    }
-
 # Additional features
 
 ### Get the db schema
@@ -64,7 +24,7 @@ You can retrieve the database schema using the `schema()` method. See the exampl
 	$array = $db->schema();
 	print_r($array);
 	
-### Get all executed queries
+### Get a log with all executed queries
 
 By default, all queries are loggued.
 You can retrieve this log using the `getQueryLog()` method.

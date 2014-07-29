@@ -52,6 +52,7 @@ Finally, there is a 'default' connection name configured with the
 	//initialize SlimDb
 	\SlimDb\SlimDb::configure('portal', $portal);
 	\SlimDb\SlimDb::configure('admin', $admin);
+	
 	//set the default connection
 	\SlimDb\SlimDb::setDefaultConnection('portal');
 
@@ -60,7 +61,7 @@ There are many classes bundled with the package.
 Depending on what you are trying to do, you should use one over the 
 other. Here is a list:
 
-[Running raw queries: SlimDb or Database classes](https://github.com/entraigas/SlimDb/blob/develop/SlimDb%20class.md)
-[Fetching data: ResultSet class](https://github.com/entraigas/SlimDb/blob/develop/SlimDb%20class.md)
-[Working with Tables](https://github.com/entraigas/SlimDb/blob/develop/Table%20class.md)
-[Working with Orm](https://github.com/entraigas/SlimDb/blob/develop/Orm%20class.md)
+* [Running raw queries: SlimDb or Database classes](https://github.com/entraigas/SlimDb/blob/develop/SlimDb.class.md)
+* [Fetching data: ResultSet class](https://github.com/entraigas/SlimDb/blob/develop/ResultSet.class.md)
+* [Working with Tables](https://github.com/entraigas/SlimDb/blob/develop/Table.class.md)
+* [Working with Orm](https://github.com/entraigas/SlimDb/blob/develop/Orm.class.md)

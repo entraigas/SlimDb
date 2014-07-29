@@ -1,7 +1,7 @@
 # Using the Table class
 
 This class is meant for doing common task in a table without writing raw queries.
-After setting up the query arguments, you have to close with a `run()` call to get a ResultSet.
+After setting up the query arguments, you have to end with a `run()` call to get a ResultSet.
 Note: internally, this class will use `SlimDb::query()` method.
 
 **Running Select queries**
@@ -45,7 +45,7 @@ Below it's a comparison between Table class & Database class select query.
     foreach($resultSet as $row) {
         print_r($row);
     }
-    echo $resultSet->rowCount(); //returned rows
+    echo $resultSet->count(); //returned rows
 
     //get some rows from customer table (where name like '%jhon%')
     $resultSet = $db->table('customer')
@@ -74,7 +74,7 @@ Below it's a comparison between Table class & Database class select query.
 		->insert($data)
 		->run();
     echo $resultSet->lastInsertId();
-	echo $resultSet->rowCount(); //affected rows
+	echo $resultSet->count(); //affected rows
     
     //update customer where id=1 set name='Jhon Doe'
     $data = array( 'name'=>'Jhon Doe' );
@@ -82,14 +82,14 @@ Below it's a comparison between Table class & Database class select query.
 		->update($data)
 		->where("id=?", array(1))
 		->run();
-    echo $resultSet->rowCount(); //affected rows
+    echo $resultSet->count(); //affected rows
 
     //delete where id=1 or category=9
     $db->table('customer')
 		->delete()
 		->where("id=? or category=?", array(1, 9))
 		->run();
-    echo $resultSet->rowCount(); //affected rows
+    echo $resultSet->count(); //affected rows
 
 **Select short-cuts operations**
 
