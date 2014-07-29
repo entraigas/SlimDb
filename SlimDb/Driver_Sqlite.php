@@ -17,13 +17,14 @@
  */
 
 return array(
-    // Initialize default driver settings after Database contructor
-    'init' => function($index){
-        self::wrapper($index, '[%s]');
+    //check PDO
+    'checkPDO' => function(){
+        return extension_loaded('pdo_sqlite');
     },
-    
-    // Function to setup default charset
-    'connect' => function ($index, $config){
+
+    // Initialize default driver settings after Database constructor
+    'init' => function($index){
+        self::_setWrapper($index, '[%s]');
     },
     
     // List all tables.
@@ -85,5 +86,14 @@ return array(
     'numRows' => function ($index, $sql, $params){
         $sql_count = "SELECT count(*) FROM ({$sql}) AS tmp";
         return (int) self::query($index, $sql_count, $params)->getVal();
+    },
+    
+    //truncate
+    'truncate' => function($index, $table){
+        //delete all records
+        self::query($index, "DELETE FROM ?", array($table));
+        //reset autoincrement/identity field
+        self::query($index, "DELETE FROM SQLITE_SEQUENCE WHERE name = ?;", array($table));        
     }
+    
 );

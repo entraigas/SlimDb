@@ -14,16 +14,16 @@
 namespace SlimDb;
 
 /**
- * TableRecord
+ * Orm
  * 
  * It's a micro ORM class.
  * Note: compound key are not supported!
  */
 
-class TableRecord implements \Countable, \IteratorAggregate
+class Orm implements \Countable, \IteratorAggregate
 {
     /** Object table */
-    protected $table = NULL;
+    protected $tableObj = NULL;
 
     /** Array with row data */
     protected $data = NULL;
@@ -31,20 +31,23 @@ class TableRecord implements \Countable, \IteratorAggregate
     /** Array with dirty row data */
     protected $dirty = array();
 
-    function __construct( $table, array $data = array() )
+    /** bool flag */
+    protected $saved = true;
+
+    function __construct($tableObj, array $data = array() )
     {
-        $this->table = $table;
-        //populate object
+        $this->tableObj = $tableObj;
+        //populate object and mark as saved
         $this->reset($data);
     }
-    
+
     /**
      * Get the number of fields in the row
      * 
      * @return int
      */
     public function count() {
-        return count($this->data);
+        return count($this->asArray());
     }
     
     /**
@@ -53,13 +56,14 @@ class TableRecord implements \Countable, \IteratorAggregate
      * @return \ArrayIterator
      */
     public function getIterator() {
-        return new ArrayIterator($this->data);
+        return new \ArrayIterator($this->asArray());
     }
 
     /**
      * Getter methods
-     * 
+     *
      * @param $key string
+     * @return bool
      */
     public function __get( $key )
     {
@@ -68,19 +72,19 @@ class TableRecord implements \Countable, \IteratorAggregate
     
     public function get( $key )
     {
-        return $this->get($key);
+        return $this->__get($key);
     }
-    
+
     /**
      * Setter methods
-     * 
-     * @param $key string
-     * @param $value mixed
+     *
+     * @param string $key
+     * @param mixed $value
+     * @return $this
      */
     public function __set( $key, $value )
     {
-        $schema = $this->schema();
-        if( !in_array($key, $this->table->cols()) ) return $this;
+        if( !in_array($key, $this->tableObj->cols()) ) return $this;
         if( !array_key_exists($key, $this->data) OR $this->data[$key] !== $value ){
             $this->dirty[$key] = $value;
             $this->saved = false;
@@ -88,14 +92,17 @@ class TableRecord implements \Countable, \IteratorAggregate
         return $this;
     }
     
+    /**
+     * Populate an object
+     */
     public function set()
     {
         $args = func_get_args();
         if( count($args)===2 ){
             return $this->__set($args[0], $args[1]);
         }
-        if( count($args)===1 ){
-            foreach($args as $key=>$value){
+        if( count($args)===1 && is_array($args[0]) ){
+            foreach($args[0] as $key=>$value){
                 if(is_string($key) && !is_array($value)){
                     $this->__set($key, $value);
                 }
@@ -104,26 +111,27 @@ class TableRecord implements \Countable, \IteratorAggregate
         }
         SlimDb::exception("Invalid arguments!", __METHOD__);
     }
-    
+
     /**
      * Reset the object data (re-populate) and mark as saved
-     * 
-     * @param $data array
+     *
+     * @param array $data
+     * @return bool
      */
     public function reset( $data = array() )
     {
         $this->dirty = array();
         $this->data = array();
-        if( count($data) ){
-            foreach($data as $key=>$value){
-                if( in_array($key, $this->table->cols()) ){
-                    $this->data[$key] = $value;
-                    $this->saved = true;
-                }
-            }
-            return true;
+        if( !is_array($data) or empty($data) ){
+            return false;
         }
-        return false;
+        foreach($data as $key=>$value){
+            if( in_array($key, $this->tableObj->cols()) ){
+                $this->data[$key] = $value;
+                $this->saved = true;
+            }
+        }
+        return true;
     }
 
     /**
@@ -134,20 +142,23 @@ class TableRecord implements \Countable, \IteratorAggregate
         if( empty($this->dirty) ) return true;
         
         $pkName = $this->pkName();
-        //is it an update?
         if( isset($this->data[$pkName]) ){
-            $this->table->update($this->dirty, "{$pkName}=?", array($this->data[$pkName]) );
-            $merged_data[$pkName] = $this->data[$pkName];
+            //it's an update
+            $this->tableObj
+                    ->update($this->dirty)
+                    ->where("{$pkName}=?",array($this->data[$pkName]))
+                    ->run();
+            $merged_data = $this->_asArray();
         } else {
             //it's an insert
-            $merged_data = array_merge(
-                $this->array_diff_schema($this->dirty),
-                $this->array_diff_schema($this->data)
-            );
-            $this->table->insert($merged_data);
+            $merged_data = $merged_data = $this->asArray();
+            $this->tableObj
+                    ->insert($merged_data)
+                    ->run();
             $pk = $this->pkName();
-            if( !isset($merged_data[$pk]) )
-                $merged_data[$pk] = $this->table->lastInsertId();
+            if( !isset($merged_data[$pk]) ){
+                //$merged_data[$pk] = $this->tableObj->lastInsertId();
+            }
         }
         $this->reset($merged_data);
         return true;
@@ -156,74 +167,107 @@ class TableRecord implements \Countable, \IteratorAggregate
     /**
      * Should cache the statement for performance boost?
      * 
-     * @param $bool bool
+     * @param bool $bool
+     * @return this
      */
     public function cacheStmt( $bool=true )
     {
-        $this->table->cacheStmt($bool);
+        $this->tableObj->cacheStmt($bool);
         return $this;
     }
     
     /**
      * Reload object from db
      * 
-     * @param $id
+     * @param mixed $id
+     * @return this
      */
     public function load($id)
     {
         if( empty($id) ){
             SlimDb::exception("Invalid id value! ({$id})", __METHOD__);
         }
-        $this->reset( $this->table->first('id=?', array($id)) );
+        $pkName = $this->pkName();
+        $this->reset(
+                $this->tableObj
+                    ->first("{$pkName}=?", array($id))
+                    ->getRow()
+        );
         return $this;
     }
     
     /**
      * Reload object from db
      * 
-     * @param $id
+     * @return this
      */
     public function reload()
     {
         $id = $this->get( $this->pkName() );
-        $this->reload( $id );
+        $this->load( $id );
         return $this;
     }
     
     /**
-     * Private function. Filter an array returning only the schema fields
+     * Delete object from db
      */
-    private function array_diff_schema(array $array)
+    public function delete()
     {
-        $schema = $this->schema();
+        $pkName = $this->pkName();
+        if( !isset($this->data[$pkName]) ){
+            return false;
+        }
+        $this->tableObj
+                ->where("{$pkName}=?", array($this->data[$pkName]))
+                ->delete()
+                ->run();
+        $this->reset();
+    }
+
+    /**
+     * Private function. Filter an array returning only the schema fields
+     *
+     * @param array $array
+     * @return array
+     */
+    private function _array_diff_schema(array $array)
+    {
+        $cols = $this->tableObj->cols();
         $retval = array();
-        foreach($schema as $field => $metadata){
+        foreach($cols as $field){
             if( isset($array[$field]) )
                 $retval[$field] = $array[$field];
         }
         return $retval;
-   }
-   
+    }
+
+    private function _asArray($remove_id=true)
+    {
+        if($remove_id){
+            $pkName = $this->pkName();
+            unset($this->dirty[$pkName]);
+        }
+        return array_merge(
+            $this->_array_diff_schema($this->data),
+            $this->_array_diff_schema($this->dirty)
+        );
+    }
+
     /**
      * Get the object data as an array
      * @return array
      */
     public function asArray()
     {
-        return $this->data;
+        return $this->_asArray(false);
     }
 
     /**
-     * Get table schema
-     */
-    public function schema()
-    {
-        return $this->table->schema();
-    }
-    
-    /**
      * Return primary key field name
      * Note: compound key are not supported!
+     *
+     * @throws \Exception
+     * @return string
      */
     public function pkName()
     {
@@ -232,7 +276,17 @@ class TableRecord implements \Countable, \IteratorAggregate
             if( $col['PRIMARY'] === true )
                 return $col['FIELD'];
         }
-        throw new \Exception( __CLASS__ ." Error: could not find Primary Key for table: " . $this->table->name() ); 
+        throw new \Exception( __CLASS__ ." Error: could not find Primary Key for table: " . $this->tableObj->name() );
+    }
+    
+    /**
+     * Get table schema
+     *
+     * @return array
+     */
+    public function schema()
+    {
+    	return $this->tableObj->schema();
     }
 
 }

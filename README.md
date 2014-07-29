@@ -17,155 +17,51 @@ In this example, there are two db settings:
 Finally, there is a 'default' connection name configured with the 
 'portal' value.
 
-    //database configutation
-    $config = array(
-        'portal' => array(
-            'dns' => "mysql:host=127.0.0.1;port=3306;dbname=testdb",
-            'username' => 'user',
-            'password' => 'secret',
-            'charset' => 'UTF8',
-            'log' => TRUE,
-        ),
-        'admin' => array(
-            'dns' => "sqlite:/path/to/sqlite.db",
-            'log' => TRUE,
-        ),
-        'default' => 'portal',
-    );
+	//database configuration array
+	$portal => array(
+		'driver' => 'mysql',
+		'getPdo' => function(){
+				//validate PDO extensions
+				if (!defined('\PDO::ATTR_DRIVER_NAME')) return false; //PDO is not available
+				if (!extension_loaded('pdo_mysql')) return false; //pdo_mysql extension not loaded
+				//make connection
+				$pdo = new \PDO("mysql:host=127.0.0.1;port=3306;dbname=testdb", 'user', 'password');
+				//default connection settings
+				$pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+				$pdo->query("SET NAMES 'utf8'");
+				//done, return pdo object
+				return $pdo;
+			}
+	);
+	$admin => array(
+		'driver' => 'sqlite',
+		'getPdo' => function(){
+				//validate PDO extensions
+				if (!defined('\PDO::ATTR_DRIVER_NAME')) return false; //PDO is not available
+				if (!extension_loaded('pdo_sqlite')) return false; //pdo_sqlite extension not loaded
+				//make connection
+				$pdo = new \PDO("sqlite:/path/to/database.db");
+				//default connection settings
+				$pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+				//done, return pdo object
+				return $pdo;
+			}
+	);
 
-    //initialize SlimDb
-    foreach($config as $index=>$setting){
-        if(is_array($setting)){
-            \SlimDb\SlimDb::configure($index, $setting);
-        }elseif($index==='default'){
-            \SlimDb\SlimDb::setDefaultConnection($setting);
-        }
-    }
+
+	//initialize SlimDb
+	\SlimDb\SlimDb::configure('portal', $portal);
+	\SlimDb\SlimDb::configure('admin', $admin);
+	
+	//set the default connection
+	\SlimDb\SlimDb::setDefaultConnection('portal');
+
 
 There are many classes bundled with the package.
 Depending on what you are trying to do, you should use one over the 
 other. Here is a list:
 
-* Runing raw queries: SlimDb or Database classes
-* Fetching data: ResultSet class
-* Working with a single table: Table 
-* ORM: TableRecord class
-
-
-# Running raw queries
-
-If you want to run raw queries you can use `SlimDb` (which is a static 
-class) or `Database` (which is not static).
-These two classes are just a wrapper around pdo, and will return a 
-`ResultSet` object after a query.
-
-Examples
-
-    $sql = "select * from customer";
-    
-    //static example
-    $resultSet = \SlimDb\SlimDb::query('portal', $sql);
-    
-    //non static example
-    $db = \SlimDb\Database(); //by default use 'portal' db
-    $resultSet = $db->query($sql);
-
-
-## Fetching data
-
-Everytime you run a `query()` method, you'll get a `ResultSet` object 
-(which is a wrapper around pdo statement object).
-Now you can use `getAll()`, `getRow()` or `getVal()` methods to retrieve 
-data.
-
-Please note, when running raw queries, `ResultSet` objects will return 
-data as an array by default.
-
-**getAll()** examples
-
-    //fetching several rows from db (low memory consumption)
-    $resultSet = $db->query($sql);
-    foreach($resultSet as $row) {
-        print_r($row); //show an array
-    }
-    //fetching several rows from db into an array
-    $sql = "select * from customer";
-    $array = $db->query($sql)->getAll();
-    foreach($array as $row) {
-        print_r($row); //show an array
-    }
-
-**getRow()** example
-
-    //fetching the 'where id=1' row
-    $sql = "select * from customer where id=?";
-    $row = $db->query($sql, array(1))->getRow();
-    echo $row['id'];
-
-**getVal()** example
-
-    //fetching a single value
-    $sql = "select count(*) from customer";
-    $row = $db->query( $sql )->getVal();
-
-
-# Using the Table class
-
-This class is ment for doing common task in a sigle table without 
-writing raw queries.
-Internally, this class will use `SlimDb::query()` method, so after a 
-`find()`, `first()`, `insert()`, `update()` or `delete()` call you'll 
-get a `ResultSet` object.
-
-Please note, when using `Table` object, `ResultSet` objects will return 
-data as a `TableRecord` object by default.
-
-**Fetching data** examples
-
-    //get all rows from customer table
-    $resultSet = $db->table('customer')->find();
-    foreach($resultSet as $row) {
-        print_r($row); //show an object
-    }
-    echo $resultSet->rowCount(); //returned rows
-
-    //get some rows from customer table (where name like '%jhon%')
-    $resultSet = $db->table('customer')->find("name like ?", array('%jhon%'));
-    foreach($resultSet as $row) {
-        print_r($row); //show an object
-    }
-    echo count($resultSet); //returned rows
-
-    //get a single row
-    $row = $db->table('customer')->first();
-    echo $row->id;
-
-**Insert, update, delete** operations
-
-    //insert into customer(name) values('Jhon Doe')
-    $data = array( 'name'=>'Jhon Doe' );
-    $resultSet = $db->table('customer')->insert($data);
-    echo $resultSet->lastInsertId();
-    
-    //update customer where id=1 set name='Jhon Doe'
-    $data = array( 'name'=>'Jhon Doe' );
-    $resultSet = $db->table('customer')->update($data, "id=?", array(1));
-    echo $resultSet->rowCount(); //affected rows
-
-    //delete where id=1 or category=9
-    $db->table('customer')->delete("id=? or category=?", array(1, 9));
-    echo $resultSet->rowCount(); //affected rows
-
-
-## Working with TableRecord class
-
-This class it's a small ORM class.
-
-You can change properties values with `set()` method and then push 
-changes to db with `save()` method.
-
-Example
-
-    //get customer id=1 and change it name
-    $customer = $db->table('customer')->first("id=?", array(1));
-    $customer->set('name', 'Jhon Foo')->save();
+* [Running raw queries: SlimDb or Database classes](https://github.com/entraigas/SlimDb/blob/develop/SlimDb.class.md)
+* [Fetching data: ResultSet class](https://github.com/entraigas/SlimDb/blob/develop/ResultSet.class.md)
+* [Working with Tables](https://github.com/entraigas/SlimDb/blob/develop/Table.class.md)
+* [Working with Orm](https://github.com/entraigas/SlimDb/blob/develop/Orm.class.md)

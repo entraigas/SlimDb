@@ -16,95 +16,65 @@ namespace SlimDb;
 /**
  * ResultSet
  * 
- * Wrapper arround pdo statement.
+ * Wrapper around pdo statement.
  * Implements iterator and countable interfaces so you can loop 
- * throught the results.
+ * through the results.
  */
 class ResultSet  implements \Iterator, \Countable
 {
+    const AS_ARRAY = 0;
+    const AS_OBJECT = 1;
+    const AS_ORM = 2;
+
     /** String current db connection name index */
     private $connectionName = NULL;
     
+    /** String current table */
+    private $tableName = NULL;
+    
+    /**
+     * Return data as [AS_ARRAY, AS_OBJECT, AS_ORM, 'myClass', ...]
+     */
+    private $returnAs = self::AS_ARRAY;
+
     /** PDO Statement Object current statement */
     private $statement = NULL;
-    
+
     /** Array current query params of the statement */
     private $sqlParams = NULL;
-    
-    /** String current table */
-    private $table = NULL;
-    
+
     /** Integer total affected/returned rows by the query */
     private $rowCount = NULL;
-    
+
     /** Object/array cursor current row */
     private $currentRow = NULL;
-    
-    /** 
-     * Return data as...
-     * false = return as array (default behaviour)
-     * true = return as TableRecord object
-     * 'custom string' = return as 'custom string' object
-     */
-    private $asObject = false;
-    
+
+    /** Integer current cursor pointer */
+    private $pointer = 0;
+
     public function __construct($connectionName, $statement, $sqlParams=null)
     {
         $this->connectionName = $connectionName;
         $this->statement = $statement;
         $this->sqlParams = $sqlParams;
         $this->rowCount = null;
-        $this->asObject = false;
     }
 
-    /**
-     * Set table name.
-     * 
-     * @param $table string
-     * @return ResultSet object
-     */
-    public function setTable($table)
-    {
-        $this->table = $table;
-        return $this;
-    }
-    
-    /**
-     * Configure the default return type as array
-     * 
-     * @return ResultSet object
-     */
-    public function asArray(){
-        $this->asObject = false;
-        return $this;
-    }
-    
-    /**
-     * Configure the default return type as an object
-     * 
-     * @param $class class name
-     * @return ResultSet object
-     */
-    public function asObject($class=true){
-        $this->asObject = $class;
-        return $this;
-    }
-    
     /*
      * Required functions by Iterator
      */
     public function rewind()
     {
         $this->pointer = 0;
-        $this->currentRow = $this->getRow();
+        $this->next();
     }
 
     public function valid()
     {
-        if ($this->rowCount()<=0) {
+        if ($this->count()<=0) {
             return false;
         }
-        return ($this->pointer < $this->rowCount());
+        return ($this->pointer < $this->count());
     }
 
     public function current()
@@ -120,76 +90,16 @@ class ResultSet  implements \Iterator, \Countable
     public function next()
     {
         $this->pointer++;
-        $this->currentRow = $this->getRow();
+        $this->currentRow = $this->getRow($this->returnAs);
     }
 
     /**
-     * Required function by Countable
+     * Required function by Countable.
+     * Calculate the affected/returned rows by the query
      *
      * @return integer
      */
     function count()
-    {
-        return $this->getRowCount();
-    }
-    
-    /**
-     * Fetch a single value from db query.
-     * Useful for "select count(*)" queries.
-     *
-     * @param int $column the optional column to return
-     * @return mixed or NULL
-     */
-    public function getVal($column = 0)
-    {
-        return $this->statement->fetchColumn($column);
-    }
-    
-    /**
-     * Fetch a single row from db query
-     *
-     * @return object|array
-     */
-    public function getRow()
-    {
-        $asObject = $this->asObject;
-        $row = $this->statement->fetch(\PDO::FETCH_ASSOC, \PDO::FETCH_ORI_NEXT);
-        if($row===false) return false;
-        if( $asObject===false ) return $row;
-        if( $asObject===true ){
-            if( $this->table===null ) return (object) $row;
-            $table = new Table($this->connectionName, $this->table);
-            return new TableRecord($table, $row);
-        }
-        //casting to a particular class
-        $class = $asObject;
-        return new $class($row);
-    }
-    
-    /**
-     * Fetch all rows from db query and return them as an array
-     *
-     * @param string $sql query to run
-     * @param array $params the optional prepared query params
-     * @return array array of objects|arrays
-     */
-    public function getAll()
-    {
-        $asObject = $this->asObject;
-        if($asObject === false)
-            return $this->statement->fetchAll(\PDO::FETCH_ASSOC);
-        //casting to a particular class
-        $data = array();
-        foreach($this as $row){
-            $data[] = $row;
-        }
-        return $data;
-    }
-    
-    /**
-     * Calculate the affected/returned rows by the query
-     */
-    private function getRowCount()
     {
         if( $this->rowCount !== null) return $this->rowCount;
         $this->rowCount = 0;
@@ -203,24 +113,106 @@ class ResultSet  implements \Iterator, \Countable
         }
         return $this->rowCount;
     }
-    
+
     /**
-     * Get the affected/returned rows by the query
-     *
-     * @return integer
+     * Set table name. Used by Table class.
+     * 
+     * @param $tableName string
+     * @return ResultSet object
      */
-    public function rowCount()
+    public function setTableName($tableName)
     {
-        return $this->getRowCount();
+        $this->tableName = $tableName;
+        return $this;
+    }
+
+    /*
+     * Configure return type. Check out "$this->returnAs" for details.
+     * Used in ResultSet created by Table queries.
+     */
+    public function asArray()
+    {
+        $this->returnAs = self::AS_ARRAY;
+        return $this;
+    }
+
+    public function asObject()
+    {
+        $this->returnAs = self::AS_OBJECT;
+        return $this;
+    }
+
+    public function asOrm()
+    {
+        $this->returnAs = self::AS_ORM;
+        return $this;
+    }
+
+    /**
+     * Fetch a single column from a query.
+     *
+     * @param int $column the optional column to return
+     * @return mixed or NULL
+     */
+    public function getVal($column = 0)
+    {
+        return $this->statement->fetchColumn($column);
+    }
+
+    /**
+     * Fetch a single row from db query
+     *
+     * @throws \Exeption
+     * @return object|array|false
+     */
+    public function getRow()
+    {
+        $row = $this->statement->fetch(\PDO::FETCH_ASSOC, \PDO::FETCH_ORI_NEXT);
+        if( ! is_array($row) ) return false;
+        switch($this->returnAs){
+            case ResultSet::AS_ARRAY:
+                return $row;
+            case ResultSet::AS_OBJECT:
+                return (object) $row;
+            case ResultSet::AS_ORM:
+                if( $this->tableName!==null ){
+                    $table = new Table($this->connectionName, $this->tableName);
+                    return new Orm($table, $row);
+                }
+                return false;
+            default: //custom object
+                if( !is_string($this->returnAs) ){
+                    throw new \Exeption("Invalid return type ({$this->returnAs})");
+                }
+                return new $this->returnAs($row);
+        }
+    }
+
+    /**
+     * Fetch all rows from db query and return them as an array
+     *
+     * @return array
+     */
+    public function getAll()
+    {
+        if($this->returnAs === ResultSet::AS_ARRAY){
+            return $this->statement->fetchAll(\PDO::FETCH_ASSOC);
+        }
+        //casting to a particular class
+        $data = array();
+        while( $row = $this->getRow() ){
+            $data[] = $row;
+        }
+        return $data;
     }
     
+
     /**
      * Call an object method in all objects from a result set
      * 
      * @param string $method
      * @param array $params
      * @return ResultSet object
-     */
     public function __call($method, $params = array()) {
         foreach($this as $object){
             if( !is_object($object) ){
@@ -230,12 +222,13 @@ class ResultSet  implements \Iterator, \Countable
         }
         return $this;
     }
-    
+     */
+
     /**
      * Apply a user function to all objects in a result set.
-     * 
-     * @param Closure|string $function
-     * @param array $params
+     *
+     * @param $fn
+     * @internal param \SlimDb\Closure|string $function
      * @return ResultSet object
      */
     public function apply($fn)
