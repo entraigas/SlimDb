@@ -2,14 +2,15 @@
 
 This class is meant for doing common task in a table without writing raw queries.
 After setting up the query arguments, you have to end with a `run()` call to get a ResultSet.
+
 Note: internally, this class will use `SlimDb::query()` method.
 
 **Running Select queries**
 
 Syntax: 
 
-$recordSet = $db->table('user')
-	[distinct(),select(), join(), where(), limit()]
+	$recordSet = $db->table('user')
+		[ distinct(), select(), join(), where(), orderBy(), limit() ]
 	->run();
 
 Below it's a comparison between Table class & Database class select query.

@@ -5,7 +5,8 @@ You can change properties values and then push changes to db with `save()` metho
 
 Examples
 
-    /* Load the customer with id=1 from db
+    /* 
+	 * Load the customer with id=1 from db
 	 * Note: both methods get the same result
 	 */
 	//find the record and return it as Orm object
@@ -16,7 +17,8 @@ Examples
 	$customer = $db->table('customer')->orm()->load(1);
 	
 	
-    /* Get the object properties
+    /*
+	 * Get the object properties
 	 * Note: both methods get the same result
 	 */
 	//get customer fields
@@ -25,14 +27,15 @@ Examples
 	//alternative foreach syntax
 	foreach($customer as $key=>$value) echo "<br>{$key} => {$value}";
 	
-    /* Introduce some changes
+    /* 
+	 * Introduce some changes
 	 * Note: all methods get the same result
 	 */
 	//property set
     $customer->name = 'Jhon Foo';
     $customer->age = 18;
 	
-	//set() method syntax 
+	//set() method 
     $customer->set('name', 'Jhon Foo');
     $customer->set('age', 18);
     
@@ -47,12 +50,14 @@ Examples
 	//save changes to db
     $customer->save();
 	
-	/* you can reload the object values from db
+	/* 
+	 * you can reload the object values from db
 	 * Note: any changes made are going to be lost!
 	 */
 	$customer->reload();
 	
-	/* create a new customer
+	/* 
+	 * create a new customer
 	 */
 	$data = array(
 		'name' => 'Jhon Doe',
@@ -61,7 +66,8 @@ Examples
 	$customer = $db->table('customer')->orm($data);
 	$customer->save();
 	
-	/* remove the customer id=1
+	/* 
+	 * remove the customer id=1
 	 */
 	$db->table('customer')->orm()->load(1)->delete();
 	

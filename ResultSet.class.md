@@ -2,6 +2,7 @@
 
 Every time you run a `query()` method, you'll get a `ResultSet` object (which is a wrapper around pdo statement object).
 Now you can use `getAll()`, `getRow()` or `getVal()` methods to retrieve data.
+
 Please note, `ResultSet` objects will return data as an array by default.
 
 **getVal() example**
@@ -60,10 +61,12 @@ Note: only queries using Table class can return Orm objects.
 ### Others methods
 
 **count() method**
+
 	$resultSet = $db->query( $sql );
 	$totalRows = $resultSet->count(); //get the total returned rows
 	
 **lastInsertId() method**
+
 	//get the last inserted id
 	$resultSet = $db->query( $sql_insert );
 	$lastInsertId = $resultSet->lastInsertId();
