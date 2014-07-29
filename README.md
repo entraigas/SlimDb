@@ -18,54 +18,49 @@ Finally, there is a 'default' connection name configured with the
 'portal' value.
 
 	//database configuration array
-	$config['databases'] = array(
-		'default' => 'portal',
-		'portal' => array(
-			'driver' => 'mysql',
-			'getPdo' => function(){
-					//validate PDO extensions
-					if (!defined('\PDO::ATTR_DRIVER_NAME')) return false; //PDO is not available
-					if (!extension_loaded('pdo_mysql')) return false; //pdo_mysql extension not loaded
-					//make connection
-					$pdo = new \PDO("mysql:host=127.0.0.1;port=3306;dbname=testdb", 'user', 'password');
-					//default connection settings
-					$pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-					$pdo->query("SET NAMES 'utf8'");
-					//done, return pdo object
-					return $pdo;
-				},
-		),
-		'admin' => array(
-			'driver' => 'sqlite',
-			'getPdo' => function(){
-					//validate PDO extensions
-					if (!defined('\PDO::ATTR_DRIVER_NAME')) return false; //PDO is not available
-					if (!extension_loaded('pdo_sqlite')) return false; //pdo_sqlite extension not loaded
-					//make connection
-					$pdo = new \PDO("sqlite:/path/to/database.db");
-					//default connection settings
-					$pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-					//done, return pdo object
-					return $pdo;
-				},
-		),
+	$portal => array(
+		'driver' => 'mysql',
+		'getPdo' => function(){
+				//validate PDO extensions
+				if (!defined('\PDO::ATTR_DRIVER_NAME')) return false; //PDO is not available
+				if (!extension_loaded('pdo_mysql')) return false; //pdo_mysql extension not loaded
+				//make connection
+				$pdo = new \PDO("mysql:host=127.0.0.1;port=3306;dbname=testdb", 'user', 'password');
+				//default connection settings
+				$pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+				$pdo->query("SET NAMES 'utf8'");
+				//done, return pdo object
+				return $pdo;
+			}
+	);
+	$admin => array(
+		'driver' => 'sqlite',
+		'getPdo' => function(){
+				//validate PDO extensions
+				if (!defined('\PDO::ATTR_DRIVER_NAME')) return false; //PDO is not available
+				if (!extension_loaded('pdo_sqlite')) return false; //pdo_sqlite extension not loaded
+				//make connection
+				$pdo = new \PDO("sqlite:/path/to/database.db");
+				//default connection settings
+				$pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+				//done, return pdo object
+				return $pdo;
+			}
 	);
 
-	//Define db resources
-	foreach($config['databases'] as $index=>$setting){
-		if(is_array($setting)){
-			\SlimDb\SlimDb::configure($index, $setting);
-		}elseif($index==='default'){
-			\SlimDb\SlimDb::setDefaultConnection($setting);
-		}
-	}
+
+	//initialize SlimDb
+	\SlimDb\SlimDb::configure('portal', $portal);
+	\SlimDb\SlimDb::configure('admin', $admin);
+	//set the default connection
+	\SlimDb\SlimDb::setDefaultConnection('portal');
 
 
 There are many classes bundled with the package.
 Depending on what you are trying to do, you should use one over the 
 other. Here is a list:
 
-* Running raw queries: SlimDb or Database classes
-* Fetching data: ResultSet class
-* Working with Table class
-* Working with Orm class
+[Running raw queries: SlimDb or Database classes](https://github.com/entraigas/SlimDb/blob/develop/SlimDb%20class.md)
+[Fetching data: ResultSet class](https://github.com/entraigas/SlimDb/blob/develop/SlimDb%20class.md)
+[Working with Tables](https://github.com/entraigas/SlimDb/blob/develop/Table%20class.md)
+[Working with Orm](https://github.com/entraigas/SlimDb/blob/develop/Orm%20class.md)
