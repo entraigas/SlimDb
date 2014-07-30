@@ -40,7 +40,7 @@ class Table extends Database
      * @param array @data initial data for object (marked dirty)
      * @return \SlimDb\Orm
      */
-    public function orm(array $data=array())
+    public function Orm(array $data=array())
     {
         $object = new Orm($this);
         if(! empty($data) ) $object->set($data);

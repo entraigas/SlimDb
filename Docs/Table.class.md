@@ -9,7 +9,7 @@ Note: internally, this class will use `SlimDb::query()` method.
 
 Syntax: 
 
-	$recordSet = $db->table('user')
+	$recordSet = $db->Table('user')
 		[ distinct(), select(), join(), where(), orderBy(), limit() ]
 	->run();
 
@@ -23,11 +23,11 @@ Below it's a comparison between Table class & Database class select query.
 	
 	//fetching a single row using Table class
 	$db = new Database('portal');
-	$table = $db->table('customer');
+	$table = $db->Table('customer');
 	$resultSet = $table->where("id = 1")->run();
 	$row = $resultSet->getRow();
 	//alterntive syntax
-	$row = $db->table('customer')
+	$row = $db->Table('customer')
 		->where("id = 1")
 		->run()
 		->getRow();
@@ -37,19 +37,19 @@ Below it's a comparison between Table class & Database class select query.
 	$row = $db->query($sql)->getAll();
 	
 	//fetching a multiples rows using Table class
-	$row = $db->table('customer')->run()->getAll();
+	$row = $db->Table('customer')->run()->getAll();
 	
 **ResultSet operations**
 
     //get all rows from customer table
-    $resultSet = $db->table('customer')->run();
+    $resultSet = $db->Table('customer')->run();
     foreach($resultSet as $row) {
         print_r($row);
     }
     echo $resultSet->count(); //returned rows
 
     //get some rows from customer table (where name like '%jhon%')
-    $resultSet = $db->table('customer')
+    $resultSet = $db->Table('customer')
 		->where("name like ?", array('%jhon%'))
 		->run();
     foreach($resultSet as $row) {
@@ -58,7 +58,7 @@ Below it's a comparison between Table class & Database class select query.
     echo count($resultSet); //returned rows
 	
 	//change the returned format
-    $resultSet = $db->table('customer')->run();
+    $resultSet = $db->Table('customer')->run();
 	//$resultSet->asArray(); //change the default format to array (default)
 	$resultSet->asObject(); //change the default format to objects
 	//$resultSet->asOrm(); //change the default format to Orm objects
@@ -71,7 +71,7 @@ Below it's a comparison between Table class & Database class select query.
 		'name'=>'Jhon Doe',
 		'age'=>18
 	);
-    $resultSet = $db->table('customer')
+    $resultSet = $db->Table('customer')
 		->insert($data)
 		->run();
     echo $resultSet->lastInsertId();
@@ -79,14 +79,14 @@ Below it's a comparison between Table class & Database class select query.
     
     //update customer where id=1 set name='Jhon Doe'
     $data = array( 'name'=>'Jhon Doe' );
-    $resultSet = $db->table('customer')
+    $resultSet = $db->Table('customer')
 		->update($data)
 		->where("id=?", array(1))
 		->run();
     echo $resultSet->count(); //affected rows
 
     //delete where id=1 or category=9
-    $db->table('customer')
+    $db->Table('customer')
 		->delete()
 		->where("id=? or category=?", array(1, 9))
 		->run();
@@ -101,28 +101,28 @@ This method return a RecordSet object.
 `First("id = 1")` it's equal to `where("id = 1")->limit(1)->run()`. Example:
 
 	//classic way
-	$row = $db->table('customer')
+	$row = $db->Table('customer')
 		->where("id = 1")
 		->limit(1)
 		->run()
 		->getRow();
 	//short-cut
-	$row = $db->table('customer')->first("id = 1")->getRow();
+	$row = $db->Table('customer')->first("id = 1")->getRow();
 
 `count()`  method.
 This method return an integer value. 
 Example:
 
 	//select count(*) from customer
-	$total = $db->table('customer')->count();
+	$total = $db->Table('customer')->count();
 	
 	//select count(*) from customer where age > 18
-	$total = $db->table('customer')->count("age > 18");
+	$total = $db->Table('customer')->count("age > 18");
 
 **Complex select operations**
 
 	//get the first 10 customers from company id = 1, ordered by customer's name.
-	$result = Db()->table('customer')
+	$result = Db()->Table('customer')
 		->distinct()
 		->select("customer.*, company.name")
 		->join('company', 'company.id = customer.id')

@@ -286,7 +286,7 @@ class Orm implements \Countable, \IteratorAggregate
      */
     public function schema()
     {
-    	return $this->tableObj->schema();
+        return $this->tableObj->schema();
     }
 
 }

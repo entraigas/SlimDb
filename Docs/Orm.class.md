@@ -10,11 +10,11 @@ Examples
 	 * Note: both methods get the same result
 	 */
 	//find the record and return it as Orm object
-    $resulSet = $db->table('customer')->first("id=?", array(1));
+    $resulSet = $db->Table('customer')->first("id=?", array(1));
 	$customer = $resulSet->asOrm()->getRow();
 	
 	//or create an Orm object and load the id=1 customer
-	$customer = $db->table('customer')->orm()->load(1);
+	$customer = $db->Table('customer')->Orm()->load(1);
 	
 	
     /*
@@ -63,11 +63,11 @@ Examples
 		'name' => 'Jhon Doe',
 		'age' => '18'
 	);
-	$customer = $db->table('customer')->orm($data);
+	$customer = $db->Table('customer')->Orm($data);
 	$customer->save();
 	
 	/* 
 	 * remove the customer id=1
 	 */
-	$db->table('customer')->orm()->load(1)->delete();
+	$db->Table('customer')->Orm()->load(1)->delete();
 	

@@ -23,11 +23,12 @@ class SlimDb
 {
     /**
      * array with db settings (config, connection, metadata...)
-     *  'my-test-database' => array(
+     *  $connectionName => array(
      *    driver => string with driver type (mysql, sqlite...)
      *    pdo => PDOobject
      *    cache-stmt => array with cached PDO statements
      *    metadata => array with metadata (list of tables and table's fields)
+     *    database = \SlimDb\Database object
      *  );
      */
     static private $config = array();
@@ -148,6 +149,7 @@ class SlimDb
             'pdo' => null,
             'cache-stmt' => array(),
             'metadata' => array(),
+            'database' => null
         );
     }
 
@@ -272,7 +274,7 @@ class SlimDb
     public static function quoteValue($connectionName, $value)
     {
         //$type = self::getConfigDriver($connectionName);
-    	$value = trim($value);
+        $value = trim($value);
         $exceptions = array('*', 'count(*)');
         return in_array($value,$exceptions) ? $value : sprintf(self::getWrapper($connectionName), $value);
     }
@@ -473,30 +475,38 @@ class SlimDb
     }
 
     /**
+     * Factory method for Databse object
+     */
+    public static function Db($connectionName)
+    {
+        return new Database($connectionName);
+    }
+    
+    /**
      * Factory method for Table object
      */
-    public static function table($connectionName, $table)
+    public static function Table($connectionName, $table)
     {
-    	if( !empty($table) )
-    	{
-    		return new Table($connectionName, $table);
-    	}
-    	SlimDb::exception("Table '{$table}' is not valid!", __METHOD__);
-	}
-	
+        if( !empty($table) )
+        {
+            return new Table($connectionName, $table);
+        }
+        SlimDb::exception("Table '{$table}' is not valid!", __METHOD__);
+    }
+    
     /**
      * Factory method for ORM object
      */
-	public static function orm($connectionName, $table)
-	{
-	    if( !empty($table) )
-	    {
-	    	$table = new Table($connectionName, $table);
-	    	return new Orm($table);
-	    }
-	    SlimDb::exception("Table '{$table}' is not valid!", __METHOD__);
-	}
-	
+    public static function Orm($connectionName, $table)
+    {
+        if( !empty($table) )
+        {
+            $table = new Table($connectionName, $table);
+            return new Orm($table);
+        }
+        SlimDb::exception("Table '{$table}' is not valid!", __METHOD__);
+    }
+    
 }
 
 /**

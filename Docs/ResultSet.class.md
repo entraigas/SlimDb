@@ -54,7 +54,7 @@ Note: only queries using Table class can return Orm objects.
 
 **asOrm() method**
 
-	$row = $db->table('customer')->first("id=1")->asOrm()->getRow();
+	$row = $db->Table('customer')->first("id=1")->asOrm()->getRow();
 	print_r($row); //an Orm object
 
 
