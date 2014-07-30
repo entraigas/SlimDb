@@ -440,7 +440,20 @@ class SlimDb
     }
 
     /**
-     * Return database or table schema (and cache it for performance)
+     * Return database name
+     *
+     * @param string $connectionName connection name
+     * @param string $table table name
+     * @param bool $force_reload force reload schema
+     * @return array
+     */
+    public static function getDbName($connectionName)
+    {
+        return self::driverCall($connectionName, 'dbName');
+    }
+    
+    /**
+     * Return schema for database or table (and cache it for performance)
      *
      * @param string $connectionName connection name
      * @param string $table table name
@@ -512,7 +525,7 @@ class Database
     }
     
     /**
-     * Get the 'connectionName'
+     * Get the 'connectionName' index
      * 
      * @return string
      */
