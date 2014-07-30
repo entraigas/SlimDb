@@ -511,6 +511,16 @@ class Database
         $this->connectionName = $connectionName;
     }
     
+    /**
+     * Get the 'connectionName'
+     * 
+     * @return string
+     */
+    function getConnectionName()
+    {
+        return $this->connectionName;
+    }
+    
     ////////////////////////////////////////////////////////////////////
     //////////////            Magic Methods               //////////////
     ////////////////////////////////////////////////////////////////////

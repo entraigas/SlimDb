@@ -39,6 +39,11 @@ return array(
             return " LIMIT {$limit}";        
     },
     
+    // Get database name
+    'dbName' => function ($index){
+        return self::query($index, "SELECT DATABASE();")->getVal();
+    }
+    
     // List all tables from database
     'schemaDb' => function ($index){
         $tables = self::query($index, "SHOW TABLES")->getAll();

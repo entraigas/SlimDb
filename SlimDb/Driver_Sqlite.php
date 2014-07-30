@@ -27,6 +27,12 @@ return array(
         self::_setWrapper($index, '[%s]');
     },
     
+    // Get database path + filename
+    'dbName' => function ($index){
+        $row = self::query($index, "PRAGMA database_list;")->getRow();
+        return $row["file"];
+    }
+    
     // List all tables.
     'schemaDb' => function ($index){
         $tables = self::query($index, "SELECT * FROM sqlite_master WHERE type='table'")->getAll();
