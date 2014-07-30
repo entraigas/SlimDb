@@ -31,7 +31,7 @@ return array(
     'dbName' => function ($index){
         $row = self::query($index, "PRAGMA database_list;")->getRow();
         return $row["file"];
-    }
+    },
     
     // List all tables.
     'schemaDb' => function ($index){

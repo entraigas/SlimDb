@@ -42,7 +42,7 @@ return array(
     // Get database name
     'dbName' => function ($index){
         return self::query($index, "SELECT DATABASE();")->getVal();
-    }
+    },
     
     // List all tables from database
     'schemaDb' => function ($index){
