@@ -25,6 +25,9 @@ class Table extends Database
     /** String table name */
     protected $tableName = NULL;
 
+    /** string primary key */
+    private $pkName = null;
+
     /** Array that holds query arguments */
     private $queryArgs = array();
 
@@ -129,6 +132,27 @@ class Table extends Database
         return array($sql, $params);
     }
 
+    private function _parseFields($fields)
+    {
+        if( empty($fields) || $fields==='*' ){
+            return $fields;
+        }
+
+        if( !is_array($fields) ){
+            return $this->quoteColumns($fields);
+        }
+
+        $sql = '';
+        foreach($fields as $key => $value){
+            if( is_int($key) )
+                $sql  .= $this->quote($value) . " , ";
+            else
+                $sql  .= $this->quote($key) . " $value, ";
+        }
+        // Remove ending ", "
+        return substr($sql, 0, -2);
+    }
+
     /**
      * Create a basic, single-table SQL prepared/parameterized statement
      *
@@ -140,7 +164,7 @@ class Table extends Database
         if( !isset($args['columns']) ) $args['columns'] = '*';
         $sql =  isset($args['distinct'])? 'SELECT DISTINCT' : 'SELECT';
         $sql .= sprintf(" %s FROM %s"
-            , $this->quoteColumns($args['columns'])
+            , $this->_parseFields($args['columns'])
             , $this->quote($args['table'])
         );
         if(isset($args['join'])){
@@ -172,18 +196,9 @@ class Table extends Database
      */
     private function _buildOrderBy($fields = NULL)
     {
-        if( ! $fields) return;
-        $sql = ' ORDER BY ';
-        // Add each order clause
-        if( !is_array($fields) ) $fields = array($fields);
-        foreach($fields as $key => $value){
-            if( is_int($key) )
-                $sql  .= $this->quote($value) . " , ";
-            else
-                $sql  .= $this->quote($key) . " $value, ";
-        }
-        // Remove ending ", "
-        return substr($sql, 0, -2);
+        $fields = $this->_parseFields($fields);
+        if( empty($fields) ) return '';
+        return " ORDER BY {$fields}";
     }
 
     /**
@@ -206,10 +221,10 @@ class Table extends Database
     public function run()
     {
         $method =  strtolower( $this->queryArgs['method'] );
+        $cacheStmt = (bool) $this->queryArgs['cacheStmt'];
+        $extra = array('cacheStmt'=>$cacheStmt);
         if( $method=='insert' ||  $method=='update' ||  $method=='delete' )
         {
-            $cacheStmt = (bool) $this->queryArgs['cacheStmt'];
-            $extra = array('cacheStmt'=>$cacheStmt, 'debug'=>true);
             $method = "_build" . ucfirst($method);
             list($sql,$params) = $this->$method($this->queryArgs);
             $resultSet = $this->query($sql, $params, $extra);
@@ -223,7 +238,7 @@ class Table extends Database
                 $resultSet = $this->query($sql, $params)->getVal();
             }
             if( $method=='query' ){
-                $resultSet = $this->query($sql, $params)
+                $resultSet = $this->query($sql, $params, $extra)
                     ->setTableName($this->tableName)
                     ->asArray();
             }
@@ -337,7 +352,7 @@ class Table extends Database
      *
      * @param array $where
      * @param array $params
-     * @return array|object
+     * @return ResultSet object
      */
     public function first($where = NULL, $params = NULL)
     {
@@ -349,11 +364,23 @@ class Table extends Database
     }
 
     /**
+     * Run a select query and return the record
+     *
+     * @param int|string $id primary key value
+     * @return ResultSet object
+     */
+    public function firstById($id)
+    {
+        $where = sprintf("%s = ?" ,  $this->pkName());
+        return $this->first($where, array($id));
+    }
+
+    /**
      * Run a "select count(*)" and return the value
      *
      * @param array $where
      * @param array $params
-     * @return value
+     * @return int
      */
     public function count($where = NULL, $params = NULL)
     {
@@ -362,6 +389,18 @@ class Table extends Database
         $this->queryArgs['where'] = $where;
         $this->queryArgs['params'] = $params;
         return $this->run();
+    }
+
+    /**
+     * Run a "select count(*) from xxx where id=?" query to check if the record exist
+     *
+     * @param int|string $id primary key value
+     * @return int
+     */
+    public function countById($id)
+    {
+        $where = sprintf("%s = ?" ,  $this->pkName());
+        return $this->count($where, array($id));
     }
 
     /**
@@ -432,9 +471,41 @@ class Table extends Database
      *
      * @return string
      */
-    public function name()
+    public function tableName()
     {
         return $this->tableName;
+    }
+
+    /**
+     * Return table name.
+     *
+     * @return string
+     */
+    public function fullName()
+    {
+        return sprintf("%s.%s", parent::dbName(), $this->tableName);
+    }
+
+    /**
+     * Return primary key field name
+     * Note: compound key are not supported!
+     *
+     * @throws \Exception
+     * @return string
+     */
+    public function pkName()
+    {
+        if( $this->pkName !== null ){
+            return $this->pkName;
+        }
+        $schema = $this->schema();
+        foreach($schema as $col){
+            if( $col['PRIMARY'] === true ){
+                $this->pkName = $col['FIELD'];
+                return $this->pkName;
+            }
+        }
+        throw new \Exception( __CLASS__ ." Error: could not find Primary Key for table: {$this->tableName}");
     }
 
     /**

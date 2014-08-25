@@ -97,8 +97,12 @@ Below it's a comparison between Table class & Database class select query.
 Note: The short-cut methods makes an implicit call to `run()`.
 
 `first()`  method.
-This method return a RecordSet object.
-`First("id = 1")` it's equal to `where("id = 1")->limit(1)->run()`. Example:
+This method return the first record of the given where clause.
+
+`firstById()`  method.
+This method expect a single value as parameter, and will search in the table's primary key field for a record with this value.
+
+Below it's a comparison between the all the select methods:
 
 	//classic way
 	$row = $db->Table('customer')
@@ -106,18 +110,25 @@ This method return a RecordSet object.
 		->limit(1)
 		->run()
 		->getRow();
-	//short-cut
-	$row = $db->Table('customer')->first("id = 1")->getRow();
+	//1st short-cut
+	$row = $db->Table('customer')->first("id = ?", array(1))->getRow();
+	//2nd short-cut
+	$row = $db->Table('customer')->firstById("1")->getRow();
+
 
 `count()`  method.
-This method return an integer value. 
-Example:
+This method return an integer value.  Example:
 
 	//select count(*) from customer
 	$total = $db->Table('customer')->count();
-	
 	//select count(*) from customer where age > 18
 	$total = $db->Table('customer')->count("age > 18");
+
+`countById()`  method.
+This method expect a single value as parameter, and will return either 1 or 0 if it find a record or not. Example:
+
+	//select count(*) from customer where id=1
+	$found = $db->Table('customer')->countById(1);
 
 **Complex select operations**
 

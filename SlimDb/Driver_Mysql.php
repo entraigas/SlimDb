@@ -36,7 +36,7 @@ return array(
         if( $offset>0 && $limit>0 )
             return " LIMIT {$offset}, {$limit}";
         if( $offset==0 && $limit>0 )
-            return " LIMIT {$limit}";        
+            return " LIMIT {$limit}";
     },
     
     // Get database name

@@ -74,7 +74,7 @@ class ResultSet  implements \Iterator, \Countable
         if ($this->count()<=0) {
             return false;
         }
-        return ($this->pointer < $this->count());
+        return ($this->pointer <= $this->count());
     }
 
     public function current()

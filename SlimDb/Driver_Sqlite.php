@@ -17,20 +17,15 @@
  */
 
 return array(
-    //check PDO
-    'checkPDO' => function(){
-        return extension_loaded('pdo_sqlite');
-    },
-
     // Initialize default driver settings after Database constructor
     'init' => function($index){
         self::_setWrapper($index, '[%s]');
     },
     
-    // Get database path + filename
+    // Get database filename
     'dbName' => function ($index){
         $row = self::query($index, "PRAGMA database_list;")->getRow();
-        return $row["file"];
+        return basename( $row["file"] );
     },
     
     // List all tables.

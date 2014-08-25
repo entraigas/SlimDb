@@ -32,22 +32,32 @@ class Orm implements \Countable, \IteratorAggregate
     protected $dirty = array();
 
     /** bool flag */
-    protected $saved = true;
+    private $loadedFromDb = false;
 
     function __construct($tableObj, array $data = array() )
     {
         $this->tableObj = $tableObj;
-        //populate object and mark as saved
+        //populate object
         $this->reset($data);
     }
 
+    /**
+     * Get the Table object
+     * 
+     * @return \SlimDb\Table
+     */
+    function Table()
+    {
+        return $this->tableObj;
+    }
+    
     /**
      * Get the number of fields in the row
      * 
      * @return int
      */
     public function count() {
-        return count($this->asArray());
+        return count($this->toArray());
     }
     
     /**
@@ -56,7 +66,7 @@ class Orm implements \Countable, \IteratorAggregate
      * @return \ArrayIterator
      */
     public function getIterator() {
-        return new \ArrayIterator($this->asArray());
+        return new \ArrayIterator($this->toArray());
     }
 
     /**
@@ -67,7 +77,8 @@ class Orm implements \Countable, \IteratorAggregate
      */
     public function __get( $key )
     {
-        return isset($this->data[$key])? $this->data[$key] : null;
+        $data = $this->toArray();
+        return isset($data[$key])? $data[$key] : null;
     }
     
     public function get( $key )
@@ -85,9 +96,12 @@ class Orm implements \Countable, \IteratorAggregate
     public function __set( $key, $value )
     {
         if( !in_array($key, $this->tableObj->cols()) ) return $this;
+        if( $this->loadedFromDb && $key===$this->pkName() ){
+            //can't overrite the id
+            return $this;
+        }
         if( !array_key_exists($key, $this->data) OR $this->data[$key] !== $value ){
             $this->dirty[$key] = $value;
-            $this->saved = false;
         }
         return $this;
     }
@@ -113,7 +127,7 @@ class Orm implements \Countable, \IteratorAggregate
     }
 
     /**
-     * Reset the object data (re-populate) and mark as saved
+     * Reset the object data (re-populate)
      *
      * @param array $data
      * @return bool
@@ -122,46 +136,55 @@ class Orm implements \Countable, \IteratorAggregate
     {
         $this->dirty = array();
         $this->data = array();
+        $this->loadedFromDb = false;
         if( !is_array($data) or empty($data) ){
             return false;
         }
         foreach($data as $key=>$value){
             if( in_array($key, $this->tableObj->cols()) ){
                 $this->data[$key] = $value;
-                $this->saved = true;
             }
         }
         return true;
     }
 
     /**
-     * Save changes to db
+     * Save changes to db & reload the object
      */
     public function save()
     {
         if( empty($this->dirty) ) return true;
-        
         $pkName = $this->pkName();
         if( isset($this->data[$pkName]) ){
-            //it's an update
-            $this->tableObj
-                    ->update($this->dirty)
-                    ->where("{$pkName}=?",array($this->data[$pkName]))
-                    ->run();
-            $merged_data = $this->_asArray();
-        } else {
-            //it's an insert
-            $merged_data = $merged_data = $this->asArray();
-            $this->tableObj
-                    ->insert($merged_data)
-                    ->run();
-            $pk = $this->pkName();
-            if( !isset($merged_data[$pk]) ){
-                $merged_data[$pk] = $this->tableObj->lastInsertId();
+            //lets see if there is a record in database
+            $count = (int) $this->tableObj->count("{$pkName} = ?", array($this->data[$pkName]));
+            if($count){
+                return $this->updateRecord();
             }
         }
-        $this->reset($merged_data);
-        return true;
+        return $this->insertRecord();
+    }
+    
+    private function updateRecord()
+    {
+        $pkName = $this->pkName();
+        $this->tableObj
+                ->update($this->dirty)
+                ->where("{$pkName}=?",array($this->data[$pkName]))
+                ->run();
+        return $this->reload();
+    }
+
+    private function insertRecord()
+    {
+        $merged_data = $this->toArray();
+        $this->tableObj
+                ->insert($merged_data)
+                ->run();
+        
+        $pkName = $this->pkName();
+        $id = isset($merged_data[$pkName])? $merged_data[$pkName] : $this->tableObj->lastInsertId();
+        return $this->load($id);
     }
 
     /**
@@ -187,12 +210,14 @@ class Orm implements \Countable, \IteratorAggregate
         if( empty($id) ){
             SlimDb::exception("Invalid id value! ({$id})", __METHOD__);
         }
-        $pkName = $this->pkName();
-        $this->reset(
-                $this->tableObj
-                    ->first("{$pkName}=?", array($id))
-                    ->getRow()
-        );
+        $data = $this->tableObj
+            ->firstById($id)
+            ->getRow();
+        if( $this->reset($data) ){
+            $this->loadedFromDb = true;
+        } else {
+            $this->__set($this->pkName(), $id);
+        }
         return $this;
     }
     
@@ -225,41 +250,24 @@ class Orm implements \Countable, \IteratorAggregate
     }
 
     /**
-     * Private function. Filter an array returning only the schema fields
-     *
-     * @param array $array
+     * Get the object data as an array
      * @return array
      */
-    private function _array_diff_schema(array $array)
+    public function toArray()
     {
         $cols = $this->tableObj->cols();
         $retval = array();
         foreach($cols as $field){
-            if( isset($array[$field]) )
-                $retval[$field] = $array[$field];
+            //default value
+            if( array_key_exists($field, $this->data) ){
+                $retval[$field] = $this->data[$field];
+            }
+            //new dirty value
+            if( array_key_exists($field, $this->dirty) ){
+                $retval[$field] = $this->dirty[$field];
+            }
         }
         return $retval;
-    }
-
-    private function _asArray($remove_id=true)
-    {
-        if($remove_id){
-            $pkName = $this->pkName();
-            unset($this->dirty[$pkName]);
-        }
-        return array_merge(
-            $this->_array_diff_schema($this->data),
-            $this->_array_diff_schema($this->dirty)
-        );
-    }
-
-    /**
-     * Get the object data as an array
-     * @return array
-     */
-    public function asArray()
-    {
-        return $this->_asArray(false);
     }
 
     /**
@@ -271,14 +279,20 @@ class Orm implements \Countable, \IteratorAggregate
      */
     public function pkName()
     {
-        $schema = $this->schema();
-        foreach($schema as $col){
-            if( $col['PRIMARY'] === true )
-                return $col['FIELD'];
-        }
-        throw new \Exception( __CLASS__ ." Error: could not find Primary Key for table: " . $this->tableObj->name() );
+        return $this->tableObj->pkName();
     }
     
+    /**
+     * Return primary key value
+     * Note: compound key are not supported!
+     *
+     * @return mixed
+     */
+    public function pkValue()
+    {
+        return $this->get($this->pkName());
+    }
+
     /**
      * Get table schema
      *
@@ -287,6 +301,16 @@ class Orm implements \Countable, \IteratorAggregate
     public function schema()
     {
         return $this->tableObj->schema();
+    }
+
+    /**
+     * Get table name
+     *
+     * @return array
+     */
+    public function tableName()
+    {
+        return $this->tableObj->tableName();
     }
 
 }

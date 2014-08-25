@@ -27,8 +27,8 @@ class SlimDb
      *    driver => string with driver type (mysql, sqlite...)
      *    pdo => PDOobject
      *    cache-stmt => array with cached PDO statements
-     *    metadata => array with metadata (list of tables and table's fields)
-     *    database = \SlimDb\Database object
+     *    metadata => array with db metadata
+     *      [db_name][table_name] => array( schema here )
      *  );
      */
     static private $config = array();
@@ -47,7 +47,7 @@ class SlimDb
 
     /** array with executed queries */
     static private $queryLog = array();
-
+    
     ////////////////////////////////////////////////////////////////////
     //////////////            PSR-0 Autoloader            //////////////
     ////////////////////////////////////////////////////////////////////
@@ -106,6 +106,23 @@ class SlimDb
     }
 
     /**
+     * Set database config parameters
+     *
+     * @param string $connectionName
+     * @param array $config
+     */
+    public static function configure($connectionName, $config)
+    {
+        self::$config[$connectionName] = array(
+            'driver' => $config['driver'],
+            'getPdo' => $config['getPdo'],
+            'pdo' => null,
+            'cache-stmt' => array(),
+            'metadata' => array(),
+        );
+    }
+
+    /**
      * Check if the connection name index is valid or not
      *
      * @param string $connectionName
@@ -120,10 +137,15 @@ class SlimDb
      * Set the default connection name index.
      *
      * @param string $connectionName
+     * @return bool
      */
     public static function setDefaultConnection($connectionName)
     {
-        self::$defaultConnection = $connectionName;
+        if( self::isValidConfig($connectionName) ){
+            self::$defaultConnection = $connectionName;
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -136,23 +158,14 @@ class SlimDb
     }
 
     /**
-     * Set database config parameters
-     *
-     * @param string $connectionName
-     * @param array $config
+     * Get all connection names index.
+     * @return array
      */
-    public static function configure($connectionName, $config)
+    public static function getAllConnectionNames()
     {
-        self::$config[$connectionName] = array(
-            'driver' => $config['driver'],
-            'getPdo' => $config['getPdo'],
-            'pdo' => null,
-            'cache-stmt' => array(),
-            'metadata' => array(),
-            'database' => null
-        );
+        return array_keys(self::$config);
     }
-
+    
     ////////////////////////////////////////////////////////////////////
     //////////////                Logs                    //////////////
     ////////////////////////////////////////////////////////////////////
@@ -198,6 +211,11 @@ class SlimDb
         return $sql;
     }
 
+    public static function debug()
+    {
+        return self::$config;
+    }
+    
     ////////////////////////////////////////////////////////////////////
     //////////////           Quote functions              //////////////
     ////////////////////////////////////////////////////////////////////
@@ -290,11 +308,14 @@ class SlimDb
     {
         $time = self::_logQuery();
         //make a connection to db
-        self::$config[$connectionName]['pdo'] = call_user_func(self::$config[$connectionName]['getPdo']);
+        $pdo = call_user_func(self::$config[$connectionName]['getPdo']);
+        if( !$pdo ) return false;
+        self::$config[$connectionName]['pdo'] = $pdo;
         unset(self::$config[$connectionName]['getPdo']);
         //load driver
         $type = self::getConfigDriver($connectionName);
-        self::_logQuery($connectionName, $time, "Establish database connection({$connectionName})");
+        self::_logQuery($connectionName, $time, "Establish database connection to {$connectionName}");
+        return true;
     }
 
     /**
@@ -308,8 +329,10 @@ class SlimDb
      */
     protected static function _run_query($connectionName, $sql, array $params = NULL, $extra = array() )
     {
-        if( ! self::$config[$connectionName]['pdo'] ){
-            self::connect($connectionName);
+        if(!self::$config[$connectionName]['pdo']){
+            if( !self::connect($connectionName) ){
+                throw new \Exception("Could not connect to database '{$connectionName}''");
+            }
         }
         $sql = trim($sql);
 
@@ -324,20 +347,18 @@ class SlimDb
         $cacheStmt = isset($extra['cacheStmt']) ? intval($extra['cacheStmt']) : false;
         $time = self::_logQuery();
         // Should we cached PDOStatements? (Best for batch inserts/updates)
+        $hash = md5($sql);
         $message = '';
-        if( $cacheStmt )
-        {
-            $hash = md5($sql);
-            if( isset(self::$config[$connectionName]['cache-stmt'][$hash]) ){
-                $message = "Prepared statement - Cache hit";
-                $statement = self::$config[$connectionName]['cache-stmt'][$hash];
-            } else {
-                $message = "Prepared statement - Cache miss";
-                $statement = self::$config[$connectionName]['cache-stmt'][$hash] = self::$config[$connectionName]['pdo']->prepare($sql);
-            }
+        if( isset(self::$config[$connectionName]['cache-stmt'][$hash]) ){
+            $message = "Prepared statement - Cache hit";
+            $statement = self::$config[$connectionName]['cache-stmt'][$hash];
         } else {
             $message = "Prepared statement";
             $statement = self::$config[$connectionName]['pdo']->prepare($sql);
+            if( $cacheStmt ){
+                $message = "Prepared statement - Cache miss";
+                $statement = self::$config[$connectionName]['cache-stmt'][$hash] = $statement;
+            }
         }
         $statement->execute($params);
         self::_logQuery($connectionName, $time, "[{$message}] $sql", $params);
@@ -449,7 +470,7 @@ class SlimDb
      * @param bool $force_reload force reload schema
      * @return array
      */
-    public static function getDbName($connectionName)
+    public static function dbName($connectionName)
     {
         return self::driverCall($connectionName, 'dbName');
     }
@@ -459,19 +480,23 @@ class SlimDb
      *
      * @param string $connectionName connection name
      * @param string $table table name
-     * @param bool $force_reload force reload schema
      * @return array
      */
-    public static function schema($connectionName, $table=NULL, $force_reload=false)
+    public static function schema($connectionName, $tableName=NULL)
     {
-        if( $table===null ){
-            return self::driverCall($connectionName, 'schemaDb');
+        if( empty(self::$config[$connectionName]['metadata']) ){
+            $tables = self::driverCall($connectionName, 'schemaDb');
+            foreach($tables as $tbl ){
+                self::$config[$connectionName]['metadata'][$tbl] = array();
+            }
         }
-        if( isset(self::$config[$connectionName]['metadata'][$table]) && !$force_reload){
-            return self::$config[$connectionName]['metadata'][$table];
+        if( $tableName===null ){
+            return array_keys( self::$config[$connectionName]['metadata'] );
         }
-        self::$config[$connectionName]['metadata'][$table] = self::driverCall($connectionName, 'schemaTable', $table);
-        return self::$config[$connectionName]['metadata'][$table];
+        if( empty(self::$config[$connectionName]['metadata'][$tableName]) ){
+            self::$config[$connectionName]['metadata'][$tableName] = self::driverCall($connectionName, 'schemaTable', $tableName);
+        }
+        return self::$config[$connectionName]['metadata'][$tableName];
     }
 
     /**
@@ -479,6 +504,9 @@ class SlimDb
      */
     public static function Db($connectionName)
     {
+        if( empty($connectionName) ){
+            $connectionName = self::getDefaultConnection();
+        }
         return new Database($connectionName);
     }
     
@@ -499,12 +527,7 @@ class SlimDb
      */
     public static function Orm($connectionName, $table)
     {
-        if( !empty($table) )
-        {
-            $table = new Table($connectionName, $table);
-            return new Orm($table);
-        }
-        SlimDb::exception("Table '{$table}' is not valid!", __METHOD__);
+        return self::Table($connectionName, $table)->Orm();
     }
     
 }
