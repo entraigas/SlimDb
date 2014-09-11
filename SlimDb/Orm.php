@@ -138,14 +138,14 @@ class Orm implements \Countable, \IteratorAggregate
         $this->data = array();
         $this->loadedFromDb = false;
         if( !is_array($data) or empty($data) ){
-            return false;
+            return $this;
         }
         foreach($data as $key=>$value){
             if( in_array($key, $this->tableObj->cols()) ){
                 $this->data[$key] = $value;
             }
         }
-        return true;
+        return $this;
     }
 
     /**
@@ -155,35 +155,59 @@ class Orm implements \Countable, \IteratorAggregate
     {
         if( empty($this->dirty) ) return true;
         $pkName = $this->pkName();
-        if( isset($this->data[$pkName]) ){
+        $pkValue = '';
+        if( !empty($this->data[$pkName])){
+            $pkValue = $this->data[$pkName];
+        } elseif( !empty($this->dirty[$pkName])){
+            $pkValue = $this->dirty[$pkName];
+        }
+        if( $pkValue!=='' ){
             //lets see if there is a record in database
-            $count = (int) $this->tableObj->count("{$pkName} = ?", array($this->data[$pkName]));
+            $count = (int) $this->tableObj->count("{$pkName} = ?", array($pkValue));
             if($count){
-                return $this->updateRecord();
+                return $this->updateRecord($pkValue);
             }
         }
-        return $this->insertRecord();
+        $merged_data = $this->toArray();
+        return $this->insertRecord($merged_data);
     }
-    
-    private function updateRecord()
+
+    /**
+     * Force an update & reload the object
+     */
+    public function update()
+    {
+        $pkName = $this->pkName();
+        if(empty($this->data[$pkName]) || empty($this->dirty[$pkName])) return false;
+        return $this->updateRecord($this->data[$pkName]);
+    }
+
+    /**
+     * Force an insert & reload the object
+     */
+    public function insert()
+    {
+        return $this->insertRecord($this->dirty);
+    }
+
+    private function updateRecord($pkValue)
     {
         $pkName = $this->pkName();
         $this->tableObj
                 ->update($this->dirty)
-                ->where("{$pkName}=?",array($this->data[$pkName]))
+                ->where("{$pkName}=?",array($pkValue))
                 ->run();
         return $this->reload();
     }
 
-    private function insertRecord()
+    private function insertRecord($data)
     {
-        $merged_data = $this->toArray();
         $this->tableObj
-                ->insert($merged_data)
+                ->insert($data)
                 ->run();
         
         $pkName = $this->pkName();
-        $id = isset($merged_data[$pkName])? $merged_data[$pkName] : $this->tableObj->lastInsertId();
+        $id = isset($data[$pkName])? $data[$pkName] : $this->tableObj->lastInsertId();
         return $this->load($id);
     }
 

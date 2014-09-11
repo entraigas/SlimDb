@@ -21,29 +21,33 @@ namespace SlimDb;
  */
 class SlimDb
 {
-    /**
-     * array with db settings (config, connection, metadata...)
-     *  $connectionName => array(
-     *    driver => string with driver type (mysql, sqlite...)
-     *    pdo => PDOobject
-     *    cache-stmt => array with cached PDO statements
-     *    metadata => array with db metadata
-     *      [db_name][table_name] => array( schema here )
-     *  );
-     */
-    static private $config = array();
-
     /** String with the default connection index */
     static private $defaultConnection = null;
 
     /**
-     * array that holds driver anonymous functions
+     * @var array db settings (connection name, driver type,  pdo object, cached statement)
+     *  $connectionName => array(
+     *    driver => string with driver type (mysql, sqlite...)
+     *    pdo => PDOobject
+     *    cache-stmt => array with cached PDO statements
+     *  );
+     */
+    static private $config = array();
+
+    /**
+     * @var array driver settings
      *  'mysql' => array(
      *    wrapper => string with quote characters
      *    functions => array with mysql functions here...
      *  );
      */
     static private $driver = array();
+
+    /**
+     * @var array db schema
+     *  [connection_name][db_name][table_name][field_name] => array(schema)
+     */
+    static private $schema = array();
 
     /** array with executed queries */
     static private $queryLog = array();
@@ -106,19 +110,18 @@ class SlimDb
     }
 
     /**
-     * Set database config parameters
+     * Set connection name configuration
      *
      * @param string $connectionName
      * @param array $config
      */
-    public static function configure($connectionName, $config)
+    public static function setConnection($connectionName, $config)
     {
         self::$config[$connectionName] = array(
             'driver' => $config['driver'],
             'getPdo' => $config['getPdo'],
             'pdo' => null,
             'cache-stmt' => array(),
-            'metadata' => array(),
         );
     }
 
@@ -128,7 +131,7 @@ class SlimDb
      * @param string $connectionName
      * @return bool
      */
-    public static function isValidConfig($connectionName)
+    public static function validateConnection($connectionName)
     {
         return isset(self::$config[$connectionName]);
     }
@@ -141,7 +144,7 @@ class SlimDb
      */
     public static function setDefaultConnection($connectionName)
     {
-        if( self::isValidConfig($connectionName) ){
+        if( self::validateConnection($connectionName) ){
             self::$defaultConnection = $connectionName;
             return true;
         }
@@ -213,7 +216,7 @@ class SlimDb
 
     public static function debug()
     {
-        return self::$config;
+        return self::$schema;
     }
     
     ////////////////////////////////////////////////////////////////////
@@ -466,37 +469,39 @@ class SlimDb
      * Return database name
      *
      * @param string $connectionName connection name
-     * @param string $table table name
-     * @param bool $force_reload force reload schema
      * @return array
      */
     public static function dbName($connectionName)
     {
         return self::driverCall($connectionName, 'dbName');
     }
-    
+
     /**
      * Return schema for database or table (and cache it for performance)
      *
      * @param string $connectionName connection name
-     * @param string $table table name
+     * @param null $tableName
+     * @param string $fieldName field name
      * @return array
      */
-    public static function schema($connectionName, $tableName=NULL)
+    public static function schema($connectionName, $tableName=null, $fieldName=null)
     {
-        if( empty(self::$config[$connectionName]['metadata']) ){
+        if( empty(self::$schema[$connectionName]['metadata']) ){
             $tables = self::driverCall($connectionName, 'schemaDb');
             foreach($tables as $tbl ){
-                self::$config[$connectionName]['metadata'][$tbl] = array();
+                self::$schema[$connectionName]['metadata'][$tbl] = array();
             }
         }
         if( $tableName===null ){
-            return array_keys( self::$config[$connectionName]['metadata'] );
+            return array_keys( self::$schema[$connectionName]['metadata'] );
         }
-        if( empty(self::$config[$connectionName]['metadata'][$tableName]) ){
-            self::$config[$connectionName]['metadata'][$tableName] = self::driverCall($connectionName, 'schemaTable', $tableName);
+        if( empty(self::$schema[$connectionName]['metadata'][$tableName]) ){
+            self::$schema[$connectionName]['metadata'][$tableName] = self::driverCall($connectionName, 'schemaTable', $tableName);
         }
-        return self::$config[$connectionName]['metadata'][$tableName];
+        if( $fieldName===null ){
+            return self::$schema[$connectionName]['metadata'][$tableName];
+        }
+        return self::$schema[$connectionName]['metadata'][$tableName][$fieldName];
     }
 
     /**
@@ -553,7 +558,7 @@ class Database
         //if empty, use the default connection name
         if( empty($connectionName) ) $connectionName = SlimDb::getDefaultConnection();
         if( empty($connectionName) ) SlimDb::exception("Missing connection name index!");
-        if( !SlimDb::isValidConfig($connectionName) ) SlimDb::exception("Invalid connection name index! ({$connectionName})");
+        if( !SlimDb::validateConnection($connectionName) ) SlimDb::exception("Invalid connection name index! ({$connectionName})");
         $this->connectionName = $connectionName;
     }
     

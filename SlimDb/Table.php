@@ -25,8 +25,8 @@ class Table extends Database
     /** String table name */
     protected $tableName = NULL;
 
-    /** string primary key */
-    private $pkName = null;
+    /** string primary key name*/
+    protected $pkName = null;
 
     /** Array that holds query arguments */
     private $queryArgs = array();
@@ -278,14 +278,19 @@ class Table extends Database
     private function _buildJoin($type, $table, $clause=null)
     {
         $sql = sprintf("%s %s", $type, $this->quote($table));
-        if($clause){
-            $tmp = explode("=", $clause);
-            foreach($tmp as $key=>$item){
-                $tmp[$key] = $this->quote($item);
-            }
-
-            $sql.=" ON " . implode(" = ", $tmp);
+        if( !$clause){
+            $this->queryArgs['join'][$table] = $sql;
+            return;
         }
+        if(stripos($clause, ' AND ') || stripos($clause, ' OR ')){
+            $this->queryArgs['join'][$table] = $sql . " ON {$clause}";
+            return;
+        }
+        $tmp = explode("=", $clause);
+        foreach($tmp as $key=>$item){
+            $tmp[$key] = $this->quote($item);
+        }
+        $sql.=" ON " . implode(" = ", $tmp);
         $this->queryArgs['join'][$table] = $sql;
     }
 
@@ -443,11 +448,12 @@ class Table extends Database
     /**
      * Return column info.
      *
+     * @param string field optional field name
      * @return array
      */
-    public function schema()
+    public function schema($field=null)
     {
-        return SlimDb::schema($this->connectionName, $this->tableName);
+        return SlimDb::schema($this->connectionName, $this->tableName, $field);
     }
 
     /**

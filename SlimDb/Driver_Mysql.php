@@ -83,7 +83,7 @@ return array(
             $row['NULLABLE'] = ($item['Null']==='YES')? true : false;
             $row['UNSIGNED'] = strpos($item['Type'],'unsigned')? true : false;
             $row['IDENTITY'] = stristr($item['Extra'],'AUTO_INCREMENT')? true : false;
-            $retval[] = $row;
+            $retval[$item['Field']] = $row;
         }
         return $retval;
     },

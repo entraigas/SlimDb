@@ -51,6 +51,8 @@ return array(
             $row['TYPE'] = $item['type'];
             if(stristr ($item['type'],'INT')){
                 $row['TYPE'] = 'integer';
+            } elseif(stristr ($item['type'],'BOOL')){
+                $row['TYPE'] = 'bool';
             } elseif(preg_match('[FLOA|DOUB|REAL|NUME|DECI]',$item['type'])){
                 $row['TYPE'] = 'float';
             } elseif(preg_match('[CLOB|CHAR|TEXT]',$item['type'])){
@@ -62,7 +64,7 @@ return array(
             $row['PRIMARY'] = ($item['pk']=='1')? true : false;
             $row['NULLABLE'] = ($item['notnull']=='1')? true : false;
             //$row['IDENTITY'] = false; //todo...
-            $retval[] = $row;
+            $retval[$item['name']] = $row;
         }
         return $retval;
     },
