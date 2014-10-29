@@ -177,7 +177,7 @@ class ResultSet  implements \Iterator, \Countable
             case ResultSet::AS_ORM:
                 if( $this->tableName!==null ){
                     $table = new Table($this->connectionName, $this->tableName);
-                    return new Orm($table, $row);
+                    return new Orm($table, $row, true);
                 }
                 return false;
             default: //custom object
@@ -205,7 +205,6 @@ class ResultSet  implements \Iterator, \Countable
         }
         return $data;
     }
-    
 
     /**
      * Call an object method in all objects from a result set

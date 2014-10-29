@@ -22,6 +22,13 @@ namespace SlimDb;
 
 class Table extends Database
 {
+    /** @var array firstById() cache. Store PDO ResultSet objects */
+    static private $cache = array();
+
+    static public function debug(){
+        return self::$cache;
+    }
+
     /** String table name */
     protected $tableName = NULL;
 
@@ -39,18 +46,6 @@ class Table extends Database
     }
 
     /**
-     * Factory method for ORM object
-     * @param array @data initial data for object (marked dirty)
-     * @return \SlimDb\Orm
-     */
-    public function Orm(array $data=array())
-    {
-        $object = new Orm($this);
-        if(! empty($data) ) $object->set($data);
-        return $object;
-    }
-
-    /**
      * Reset $this->queryArgs array
      */
     private function _reset_args()
@@ -59,15 +54,10 @@ class Table extends Database
         $this->queryArgs['table'] = $this->tableName;
         $this->queryArgs['method'] = 'query';
         $this->queryArgs['cacheStmt'] = false;
+        $this->queryArgs['params'] = array();
     }
 
-    /**
-     * Create an insert prepared/parameterized statement
-     *
-     * @param array $args
-     * @return array
-     */
-    private function _buildInsert($args)
+    private function _sqlInsert($args)
     {
         if( !is_array($args['data']) ){
             SlimDb::exception("Invalid data argument. Must be an array!", __METHOD__);
@@ -79,21 +69,19 @@ class Table extends Database
         return array($sql, array_values($args['data']));
     }
 
-    /**
-     * Create an update prepared/parameterized statement
-     *
-     * @param array $args
-     * @return array
-     */
-    private function _buildUpdate($args)
+    private function _sqlUpdate($args)
     {
         if( !is_array($args['data']) ){
             SlimDb::exception("Invalid data argument. Must be an array!", __METHOD__);
         }
         $table = $this->quote($args['table']);
         $sql = "UPDATE {$table}";
+        $params = array();
         if(isset($args['join'])){
-            $sql .= ' ' . implode(" ", $args['join']);
+            foreach($args['join'] as $join){
+                $sql .= ' ' . $join['sql'];
+                $params = $this->_addParameters($params, $join['params']);
+            }
         }
         foreach(array_keys($args['data']) as $item)
         {
@@ -101,35 +89,99 @@ class Table extends Database
         }
         $columns = implode(', ', $columns);
         $sql .= " SET {$columns}";
-        $params = array_values($args['data']);
+        $params = $this->_addParameters($params, array_values($args['data']));
         // Process WHERE conditions
-        if( isset($args['where']) ){
-            $sql .= " WHERE {$args['where']}";
-            $params = array_merge(array_values($args['data']), $args['params']);
+        if( isset($args['where']['sql']) ){
+            $sql .= " WHERE {$args['where']['sql']}";
+            $params = $this->_addParameters($params, $args['where']['params']);
         }
         return array($sql, $params);
     }
 
-    /**
-     * Create a delete prepared/parameterized statement
-     *
-     * @param array $args
-     * @return array
-     */
-    private function _buildDelete($args)
+    private function _sqlDelete($args)
     {
         $table = $this->quote($args['table']);
+        $params = array();
         $sql = "DELETE FROM {$table}";
         if(isset($args['join'])){
-            $sql .= ' ' . implode(" ", $args['join']);
+            foreach($args['join'] as $join){
+                $sql .= ' ' . $join['sql'];
+                $params = $this->_addParameters($params, $join['params']);
+            }
         }
-        $params = array();
         // Process WHERE conditions
         if( isset($args['where']) ){
-            $sql .= " WHERE {$args['where']}";
-            $params = $args['params'];
+            $sql .= " WHERE {$args['where']['sql']}";
+            $params = $this->_addParameters($params, $args['where']['params']);
         }
         return array($sql, $params);
+    }
+
+    private function _sqlSelect($args)
+    {
+        $params = array();
+        if( !isset($args['columns']) ) $args['columns'] = '*';
+        $sql =  isset($args['distinct'])? 'SELECT DISTINCT' : 'SELECT';
+        $sql .= sprintf(" %s FROM %s"
+            , $this->_parseFields($args['columns'])
+            , $this->quote($args['table'])
+        );
+        if(isset($args['join'])){
+            foreach($args['join'] as $join){
+                $sql .= ' ' . $join['sql'];
+                $params = $this->_addParameters($params, $join['params']);
+            }
+        }
+        // Process WHERE conditions
+        if( isset($args['where']['sql']) ){
+            $sql .= " WHERE {$args['where']['sql']}";
+            $params = $this->_addParameters($params, $args['where']['params']);
+        }
+        // ORDER BY sorting
+        if( isset($args['order']) ){
+            $sql .= $this->_buildOrderBy($args['order']);
+        }
+        // LIMIT conditions
+        if( isset($args['limit']) )
+        {
+            $sql .= $this->_buildLimit($args['offset'], $args['limit']);
+        }
+        return array($sql, $params);
+    }
+
+    private function _addParameters($base, $new)
+    {
+        foreach($new as $item){
+            $base[] = $item;
+        }
+        return $base;
+    }
+
+    //private function _buildJoin($type, $table, $clause=null, $params=null)
+    private function _buildJoin()
+    {
+        $args = func_get_args();
+        if(count($args)<3) return;
+
+        $type = array_shift($args);
+        $table = array_shift($args);
+        list($clause, $params) = call_user_func_array( array(&$this, '_parseClause'), $args);
+        $sql = sprintf("%s %s ON %s", $type, $this->quote($table), $clause);
+
+        $this->queryArgs['join'][$table]['sql'] = $sql;
+        $this->queryArgs['join'][$table]['params'] = $params;
+    }
+
+    private function _buildOrderBy($fields = NULL)
+    {
+        $fields = $this->_parseFields($fields);
+        if( empty($fields) ) return '';
+        return " ORDER BY {$fields}";
+    }
+
+    private function _buildLimit($offset = 0, $limit = 0)
+    {
+        return $this->driverCall('limit', $offset, $limit);
     }
 
     private function _parseFields($fields)
@@ -153,65 +205,44 @@ class Table extends Database
         return substr($sql, 0, -2);
     }
 
-    /**
-     * Create a basic, single-table SQL prepared/parameterized statement
-     *
-     * @param array $args
-     * @return array
-     */
-    private function _buildSelect($args)
+    private function _parseClause()
     {
-        if( !isset($args['columns']) ) $args['columns'] = '*';
-        $sql =  isset($args['distinct'])? 'SELECT DISTINCT' : 'SELECT';
-        $sql .= sprintf(" %s FROM %s"
-            , $this->_parseFields($args['columns'])
-            , $this->quote($args['table'])
-        );
-        if(isset($args['join'])){
-            $sql .= ' ' . implode(" ", $args['join']);
+        $args = func_get_args();
+
+        if(count($args)==0 || empty($args[0])){
+            //error!
+            return array('', array());
         }
-        // Process WHERE conditions
+
+        //one array param
+        if(count($args)==1 && is_array($args[0])){
+            $array = $params = array();
+            foreach($args[0] as $field=>$clause){
+                if(is_int($field)) continue;
+                $quoted_field = $this->quote($field);
+                $array[] = strstr('%',$clause)? "{$quoted_field} LIKE ?" : "{$quoted_field} = ?";
+                $params[] = $clause;
+            }
+            $sql = implode(' AND ', $array);
+            return array($sql, $params);
+        }
+
+        //backward compatible call: where($sql, array(1,'jhon'))
+        if(count($args)==2 && is_string($args[0]) && is_array($args[1])){
+            return array($args[0], $args[1]);
+        }
+
+        //first args is the sql, then the params
+        $sql = $args[0];
         $params = array();
-        if( isset($args['where']) ){
-            $sql .= " WHERE {$args['where']}";
-            $params = $args['params'];
-        }
-        // ORDER BY sorting
-        if( isset($args['order']) ){
-            $sql .= $this->_buildOrderBy($args['order']);
-        }
-        // LIMIT conditions
-        if( isset($args['limit']) )
-        {
-            $sql .= $this->_buildLimit($args['offset'], $args['limit']);
+        if(count($args)>1){
+            array_shift($args);
+            $params = $args;
         }
         return array($sql, $params);
     }
 
-    /**
-     * Create the ORDER BY clause
-     *
-     * @param array $fields to order by
-     * @return string
-     */
-    private function _buildOrderBy($fields = NULL)
-    {
-        $fields = $this->_parseFields($fields);
-        if( empty($fields) ) return '';
-        return " ORDER BY {$fields}";
-    }
-
-    /**
-     * Create the LIMIT clause
-     *
-     * @param int $offset
-     * @param int $limit
-     * @return string
-     */
-    private function _buildLimit($offset = 0, $limit = 0)
-    {
-        return $this->driverCall('limit', $offset, $limit);
-    }
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
      * Build & run the sql query
@@ -225,7 +256,7 @@ class Table extends Database
         $extra = array('cacheStmt'=>$cacheStmt);
         if( $method=='insert' ||  $method=='update' ||  $method=='delete' )
         {
-            $method = "_build" . ucfirst($method);
+            $method = "_sql" . ucfirst($method);
             list($sql,$params) = $this->$method($this->queryArgs);
             $resultSet = $this->query($sql, $params, $extra);
             $this->_reset_args();
@@ -233,7 +264,7 @@ class Table extends Database
         }
         if( $method=='query' ||  $method=='value' )
         {
-            list($sql,$params) = $this->_buildSelect($this->queryArgs);
+            list($sql,$params) = $this->_sqlSelect($this->queryArgs);
             if( $method=='value'){
                 $resultSet = $this->query($sql, $params)->getVal();
             }
@@ -275,54 +306,54 @@ class Table extends Database
     /*
      * Join functions
      */
-    private function _buildJoin($type, $table, $clause=null)
+    public function join()
     {
-        $sql = sprintf("%s %s", $type, $this->quote($table));
-        if( !$clause){
-            $this->queryArgs['join'][$table] = $sql;
-            return;
-        }
-        if(stripos($clause, ' AND ') || stripos($clause, ' OR ')){
-            $this->queryArgs['join'][$table] = $sql . " ON {$clause}";
-            return;
-        }
-        $tmp = explode("=", $clause);
-        foreach($tmp as $key=>$item){
-            $tmp[$key] = $this->quote($item);
-        }
-        $sql.=" ON " . implode(" = ", $tmp);
-        $this->queryArgs['join'][$table] = $sql;
-    }
-
-    public function join($table, $clause=null)
-    {
-        $this->_buildJoin("INNER JOIN", $table, $clause);
+        $args = func_get_args();
+        if(count($args)<2) return;
+        array_unshift($args, "INNER JOIN");
+        call_user_func_array( array(&$this, '_buildJoin'), $args);
         return $this;
     }
 
     public function lJoin($table, $clause=null)
     {
-        $this->_buildJoin("LEFT JOIN", $table, $clause);
+        $args = func_get_args();
+        if(count($args)<2) return;
+        array_unshift($args, "LEFT JOIN");
+        call_user_func_array( array(&$this, '_buildJoin'), $args);
         return $this;
     }
 
     public function rJoin($table, $clause=null)
     {
-        $this->_buildJoin("RIGHT JOIN", $table, $clause);
+        $args = func_get_args();
+        if(count($args)<2) return;
+        array_unshift($args, "RIGHT JOIN");
+        call_user_func_array( array(&$this, '_buildJoin'), $args);
         return $this;
     }
 
     /**
      * Setup where condition
      *
-     * @param array $where
-     * @param array $params
+     * examples:
+     * where("id=?" ,1)
+     * where(array('id'=>1))
+     * where("id>=? OR id<=?", 1, 10)
+     * where("id>=? OR id<=?", array(1,10))
+     *
      * @return $this
      */
-    public function where($where = NULL, $params = NULL)
+    public function where()
     {
-        $this->queryArgs['where'] = $where;
-        $this->queryArgs['params'] = $params;
+        list($sql, $params) = call_user_func_array( array(&$this, '_parseClause'), func_get_args());
+        if(!empty($sql)){
+            $this->queryArgs['where'] = array(
+                'sql' => $sql,
+                'params' => $params
+            );
+
+        }
         return $this;
     }
 
@@ -359,10 +390,9 @@ class Table extends Database
      * @param array $params
      * @return ResultSet object
      */
-    public function first($where = NULL, $params = NULL)
+    public function first()
     {
-        $this->queryArgs['where'] = $where;
-        $this->queryArgs['params'] = $params;
+        call_user_func_array( array(&$this, 'where'), func_get_args());
         $this->queryArgs['limit'] = 1;
         $this->queryArgs['offset'] = 0;
         return $this->run();
@@ -372,12 +402,16 @@ class Table extends Database
      * Run a select query and return the record
      *
      * @param int|string $id primary key value
-     * @return ResultSet object
+     * @return ORM object
      */
     public function firstById($id)
     {
-        $where = sprintf("%s = ?" ,  $this->pkName());
-        return $this->first($where, array($id));
+        if( isset(self::$cache[$this->tableName][$id])){
+            return self::$cache[$this->tableName][$id];
+        }
+        $where[$this->pkName()] = $id;
+        self::$cache[$this->tableName][$id] =  $this->first($where)->asOrm()->getRow();
+        return self::$cache[$this->tableName][$id];
     }
 
     /**
@@ -387,13 +421,12 @@ class Table extends Database
      * @param array $params
      * @return int
      */
-    public function count($where = NULL, $params = NULL)
+    public function count()
     {
         $this->queryArgs['method'] = 'value';
         $this->queryArgs['columns'] = 'count(*)';
-        $this->queryArgs['where'] = $where;
-        $this->queryArgs['params'] = $params;
-        return $this->run();
+        call_user_func_array( array(&$this, 'where'), func_get_args());
+        return (int) $this->run();
     }
 
     /**
@@ -404,8 +437,8 @@ class Table extends Database
      */
     public function countById($id)
     {
-        $where = sprintf("%s = ?" ,  $this->pkName());
-        return $this->count($where, array($id));
+        $where[$this->pkName()] = $id;
+        return $this->count($where);
     }
 
     /**
@@ -457,7 +490,7 @@ class Table extends Database
     }
 
     /**
-     * Return column name.
+     * Return columns name.
      *
      * @return array
      */

@@ -10,11 +10,11 @@ Examples
 	 * Note: both methods get the same result
 	 */
 	//find the record and return it as Orm object
-    $resulSet = $db->Table('customer')->first("id=?", array(1));
-	$customer = $resulSet->asOrm()->getRow();
+    $resultSet = $db->Table('customer')->firstById(1);
+	$customer = $resultSet->asOrm()->getRow();
 	
 	//or create an Orm object and load the id=1 customer
-	$customer = $db->Table('customer')->Orm()->load(1);
+	$customer = $db->Orm('customer')->load(1);
 	
 	
     /*
@@ -22,7 +22,7 @@ Examples
 	 * Note: both methods get the same result
 	 */
 	//get customer fields
-	print_r( $customer->asArray() );
+	print_r( $customer->toArray() );
 
 	//alternative foreach syntax
 	foreach($customer as $key=>$value) echo "<br>{$key} => {$value}";
@@ -32,17 +32,17 @@ Examples
 	 * Note: all methods get the same result
 	 */
 	//property set
-    $customer->name = 'Jhon Foo';
+    $customer->name = 'John Foo';
     $customer->age = 18;
 	
 	//set() method 
-    $customer->set('name', 'Jhon Foo');
+    $customer->set('name', 'John Foo');
     $customer->set('age', 18);
     
 	//alternative set() method syntax 
 	$customer->set( 
 		array(
-			'name' => 'Jhon Foo',
+			'name' => 'John Foo',
 			'age' => '18'
 		)
 	);
@@ -60,14 +60,14 @@ Examples
 	 * create a new customer
 	 */
 	$data = array(
-		'name' => 'Jhon Doe',
+		'name' => 'John Foo',
 		'age' => '18'
 	);
-	$customer = $db->Table('customer')->Orm($data);
+	$customer = $db->Orm('customer')->set($data);
 	$customer->save();
 	
 	/* 
 	 * remove the customer id=1
 	 */
-	$db->Table('customer')->Orm()->load(1)->delete();
+	$db->Orm('customer')->load(1)->delete();
 	

@@ -11,9 +11,14 @@ Examples
     $resultSet = \SlimDb\SlimDb::query('portal', $sql);
     
     //non static example using the default connection (portal)
-    $db = \SlimDb\Database();
+    $db = new \SlimDb\Database();
     $resultSet = $db->query($sql);
+    //alternative, you can call a static method ´$db = \SlimDb\SlimDb::Db();´ to create a Database object
 
+Note: remember the first argument of the `query()` method is the sql (string) query, the second is (an array) where you put the arguments.
+
+    $db->query($sql, $args);  //non static syntax
+    \SlimDb\SlimDb::query('portal', $sql, $args);  //static syntax
 
 # Additional features
 
@@ -26,7 +31,7 @@ You can retrieve the database schema using the `schema()` method. See the exampl
 	
 ### Get a log with all executed queries
 
-By default, all queries are loggued.
+By default, all queries are logged.
 You can retrieve this log using the `getQueryLog()` method.
 
 	$array = $db->getQueryLog();
@@ -40,3 +45,6 @@ You can retrieve this log using the `getQueryLog()` method.
 
 There are several quote functions (`quoteColumns()`, `quote()`, `quoteValue()`).
 But most likely you'll end up using `quote()`.
+`quote()` it quote a column. Has some logic to detect string like "user_id as UserId"
+`quoteColumns()` is used for quote select or order by strings. Example: $db->quoteColumns("id, customer_name, dispay_name");
+`quoteValue()` this is the most basic quote function, it almost has no logic, it just quote the string.

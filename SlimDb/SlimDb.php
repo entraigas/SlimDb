@@ -96,6 +96,16 @@ class SlimDb
     //////////////             Configuration              //////////////
     ////////////////////////////////////////////////////////////////////
 
+    public static function setSchema($schema)
+    {
+        self::$schema = $schema;
+    }
+
+    public static function getSchema()
+    {
+        return self::$schema;
+    }
+
     /**
      * Throw and exception
      *
@@ -214,11 +224,6 @@ class SlimDb
         return $sql;
     }
 
-    public static function debug()
-    {
-        return self::$schema;
-    }
-    
     ////////////////////////////////////////////////////////////////////
     //////////////           Quote functions              //////////////
     ////////////////////////////////////////////////////////////////////
@@ -278,7 +283,8 @@ class SlimDb
         $alias = preg_split("/ as /i", $value);
         $parts = explode('.', $alias[0]);
         foreach($parts as $item){
-            $retval[] = self::quoteValue($connectionName, $item);
+            $item = trim($item);
+            $retval[] = strpos($item, ' ')? $item : self::quoteValue($connectionName, $item);
         }
         $retval =  implode('.', $retval);
         if(isset($alias[1])) $retval = $retval . " AS {$alias[1]}";
@@ -309,15 +315,13 @@ class SlimDb
      */
     protected static function connect($connectionName)
     {
-        $time = self::_logQuery();
         //make a connection to db
         $pdo = call_user_func(self::$config[$connectionName]['getPdo']);
         if( !$pdo ) return false;
         self::$config[$connectionName]['pdo'] = $pdo;
         unset(self::$config[$connectionName]['getPdo']);
         //load driver
-        $type = self::getConfigDriver($connectionName);
-        self::_logQuery($connectionName, $time, "Establish database connection to {$connectionName}");
+        self::getConfigDriver($connectionName);
         return true;
     }
 
@@ -528,11 +532,11 @@ class SlimDb
     }
     
     /**
-     * Factory method for ORM object
+     * Factory method for an empty ORM object
      */
     public static function Orm($connectionName, $table)
     {
-        return self::Table($connectionName, $table)->Orm();
+        return new Orm( self::Table($connectionName, $table) );
     }
     
 }

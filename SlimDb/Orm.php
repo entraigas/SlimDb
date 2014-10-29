@@ -34,11 +34,12 @@ class Orm implements \Countable, \IteratorAggregate
     /** bool flag */
     private $loadedFromDb = false;
 
-    function __construct($tableObj, array $data = array() )
+    function __construct($tableObj, array $data = array(), $loadedFromDb = false )
     {
         $this->tableObj = $tableObj;
         //populate object
         $this->reset($data);
+        $this->loadedFromDb = (bool) $loadedFromDb;
     }
 
     /**
@@ -163,8 +164,7 @@ class Orm implements \Countable, \IteratorAggregate
         }
         if( $pkValue!=='' ){
             //lets see if there is a record in database
-            $count = (int) $this->tableObj->count("{$pkName} = ?", array($pkValue));
-            if($count){
+            if( $this->loadedFromDb || $this->tableObj->countById($pkValue) ){
                 return $this->updateRecord($pkValue);
             }
         }
@@ -182,22 +182,22 @@ class Orm implements \Countable, \IteratorAggregate
         return $this->updateRecord($this->data[$pkName]);
     }
 
+    private function updateRecord($pkValue)
+    {
+        $where[$this->pkName()] = $pkValue;
+        $this->tableObj
+            ->update($this->dirty)
+            ->where($where)
+            ->run();
+        return $this->reload();
+    }
+
     /**
      * Force an insert & reload the object
      */
     public function insert()
     {
         return $this->insertRecord($this->dirty);
-    }
-
-    private function updateRecord($pkValue)
-    {
-        $pkName = $this->pkName();
-        $this->tableObj
-                ->update($this->dirty)
-                ->where("{$pkName}=?",array($pkValue))
-                ->run();
-        return $this->reload();
     }
 
     private function insertRecord($data)
@@ -207,7 +207,7 @@ class Orm implements \Countable, \IteratorAggregate
                 ->run();
         
         $pkName = $this->pkName();
-        $id = isset($data[$pkName])? $data[$pkName] : $this->tableObj->lastInsertId();
+        $id = empty($data[$pkName])? $this->tableObj->lastInsertId() : $data[$pkName];
         return $this->load($id);
     }
 
@@ -236,7 +236,7 @@ class Orm implements \Countable, \IteratorAggregate
         }
         $data = $this->tableObj
             ->firstById($id)
-            ->getRow();
+            ->toArray();
         if( $this->reset($data) ){
             $this->loadedFromDb = true;
         } else {
@@ -266,8 +266,9 @@ class Orm implements \Countable, \IteratorAggregate
         if( !isset($this->data[$pkName]) ){
             return false;
         }
+        $where[$pkName] =  $this->data[$pkName];
         $this->tableObj
-                ->where("{$pkName}=?", array($this->data[$pkName]))
+                ->where($where)
                 ->delete()
                 ->run();
         $this->reset();

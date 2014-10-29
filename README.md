@@ -3,9 +3,9 @@ SlimDb
 
 Small db layer around the PDO and PDO statement.
 
-The package goal is to be small and handy, with the basic, commonly used 
-db functions (like select, update, insert and delete).
-Currently there's only support for mysql and sqlite.
+The package goal used to be small and handy, with the basic, commonly used db functions (like select, update, insert and delete).
+Now it's more ambitious, and it's no so small and basic.
+Note: there's only support for mysql and sqlite.
 
 # Installing the package
 

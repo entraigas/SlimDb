@@ -18,7 +18,8 @@ Please note, `ResultSet` objects will return data as an array by default.
 
     //fetching the 'where id=1' row
     $sql = "select * from customer where id=?";
-    $row = $db->query($sql, array(1))->getRow();
+    $sql_args = array(1);
+    $row = $db->query($sql, $sql_args)->getRow();
     print_r($row);
 
 **getAll() examples**
@@ -29,7 +30,7 @@ Please note, `ResultSet` objects will return data as an array by default.
         print_r($row);
     }
     
-	//fetching several rows from db into an array
+	//fetching several rows from db into an array at once
     $sql = "select * from customer";
 	$array = $db->query($sql)->getAll();
     foreach($array as $row) {
