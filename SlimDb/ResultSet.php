@@ -26,9 +26,9 @@ class ResultSet  implements \Iterator, \Countable
     const AS_OBJECT = 1;
     const AS_ORM = 2;
 
-    /** String current db connection name index */
-    private $connectionName = NULL;
-    
+    /** Object current db */
+    private $db = NULL;
+
     /** String current table */
     private $tableName = NULL;
     
@@ -52,9 +52,9 @@ class ResultSet  implements \Iterator, \Countable
     /** Integer current cursor pointer */
     private $pointer = 0;
 
-    public function __construct($connectionName, $statement, $sqlParams=null)
+    public function __construct($db, $statement, $sqlParams=null)
     {
-        $this->connectionName = $connectionName;
+        $this->db = $db;
         $this->statement = $statement;
         $this->sqlParams = $sqlParams;
         $this->rowCount = null;
@@ -106,10 +106,10 @@ class ResultSet  implements \Iterator, \Countable
         $sql = $this->statement->queryString;
         if( preg_match('#\s*(INSERT|UPDATE|DELETE|REPLACE)\s+#i', $sql) ){
             //get the affected rows
-            $this->rowCount = $this->statement->rowCount();
+            $this->rowCount = (int) $this->statement->rowCount();
         } else {
             //get the returned rows
-            $this->rowCount = SlimDb::driverCall($this->connectionName, 'numRows', $sql, $this->sqlParams);
+            $this->rowCount = (int) $this->db->driverCall('numRows', $sql, $this->sqlParams);
         }
         return $this->rowCount;
     }
@@ -176,7 +176,7 @@ class ResultSet  implements \Iterator, \Countable
                 return (object) $row;
             case ResultSet::AS_ORM:
                 if( $this->tableName!==null ){
-                    $table = new Table($this->connectionName, $this->tableName);
+                    $table = $this->db->Table($this->tableName);
                     return new Orm($table, $row, true);
                 }
                 return false;
@@ -245,7 +245,7 @@ class ResultSet  implements \Iterator, \Countable
      */
     public function lastInsertId()
     {
-        return SlimDb::lastInsertId($this->connectionName);
+        return $this->lastInsertId();
     }
     
 }

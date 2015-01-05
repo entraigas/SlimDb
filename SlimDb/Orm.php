@@ -157,9 +157,9 @@ class Orm implements \Countable, \IteratorAggregate
         if( empty($this->dirty) ) return true;
         $pkName = $this->pkName();
         $pkValue = '';
-        if( !empty($this->data[$pkName])){
+        if( array_key_exists($pkName, $this->data) && $this->data[$pkName]!=='' ){
             $pkValue = $this->data[$pkName];
-        } elseif( !empty($this->dirty[$pkName])){
+        } elseif( array_key_exists($pkName, $this->dirty) && $this->dirty[$pkName]!=='' ){
             $pkValue = $this->dirty[$pkName];
         }
         if( $pkValue!=='' ){
@@ -231,7 +231,7 @@ class Orm implements \Countable, \IteratorAggregate
      */
     public function load($id)
     {
-        if( empty($id) ){
+        if( $id==='' ){
             SlimDb::exception("Invalid id value! ({$id})", __METHOD__);
         }
         $data = $this->tableObj
@@ -266,11 +266,7 @@ class Orm implements \Countable, \IteratorAggregate
         if( !isset($this->data[$pkName]) ){
             return false;
         }
-        $where[$pkName] =  $this->data[$pkName];
-        $this->tableObj
-                ->where($where)
-                ->delete()
-                ->run();
+        $this->tableObj->deleteById($this->data[$pkName]);
         $this->reset();
     }
 

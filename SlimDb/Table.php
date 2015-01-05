@@ -59,21 +59,39 @@ class Table extends Database
 
     private function _sqlInsert($args)
     {
+        //validations
         if( !is_array($args['data']) ){
-            SlimDb::exception("Invalid data argument. Must be an array!", __METHOD__);
+            parent::exception("Invalid data argument. Must be an array!", __METHOD__);
         }
+        $data = array();
+        foreach($this->cols() as $column){
+            if(array_key_exists($column, $args['data'])){
+                $data[$column] = $args['data'][$column];
+            }
+        }
+        if( empty($data) ) parent::exception("Invalid insert data!", __METHOD__);
+        //create sql query
         $table = $this->quote($args['table']);
-        $columns = $this->quoteColumns(array_keys($args['data']));
-        $place_holders = rtrim(str_repeat('?, ', count($args['data'])), ', ');
+        $columns = $this->quoteColumns(array_keys($data));
+        $place_holders = rtrim(str_repeat('?, ', count($data)), ', ');
         $sql = "INSERT INTO {$table} ({$columns}) VALUES ({$place_holders});";
-        return array($sql, array_values($args['data']));
+        return array($sql, array_values($data));
     }
 
     private function _sqlUpdate($args)
     {
+        //validations
         if( !is_array($args['data']) ){
-            SlimDb::exception("Invalid data argument. Must be an array!", __METHOD__);
+            parent::exception("Invalid data argument. Must be an array!", __METHOD__);
         }
+        $data = array();
+        foreach($this->cols() as $column){
+            if(array_key_exists($column, $args['data'])){
+                $data[$column] = $args['data'][$column];
+            }
+        }
+        if( empty($data) ) parent::exception("Invalid update data!", __METHOD__);
+        //create sql query
         $table = $this->quote($args['table']);
         $sql = "UPDATE {$table}";
         $params = array();
@@ -83,13 +101,13 @@ class Table extends Database
                 $params = $this->_addParameters($params, $join['params']);
             }
         }
-        foreach(array_keys($args['data']) as $item)
+        foreach(array_keys($data) as $col)
         {
-            $columns[] = $this->quote($item) . ' = ?';
+            $columns[] = $this->quote($col) . ' = ?';
         }
         $columns = implode(', ', $columns);
         $sql .= " SET {$columns}";
-        $params = $this->_addParameters($params, array_values($args['data']));
+        $params = $this->_addParameters($params, array_values($data));
         // Process WHERE conditions
         if( isset($args['where']['sql']) ){
             $sql .= " WHERE {$args['where']['sql']}";
@@ -442,19 +460,6 @@ class Table extends Database
     }
 
     /**
-     * Creates an UPDATE statement using the values provided.
-     *
-     * @param array $data
-     * @return $this
-     */
-    public function update($data)
-    {
-        $this->queryArgs['method'] = 'update';
-        $this->queryArgs['data'] = $data;
-        return $this;
-    }
-
-    /**
      * Creates a DELETE statement using the values provided
      *
      * @return $this
@@ -463,6 +468,18 @@ class Table extends Database
     {
         $this->queryArgs['method'] = 'delete';
         return $this;
+    }
+
+    /**
+     * Run a "DELETE from xxx where id=?" query
+     *
+     * @param int|string $id primary key value
+     * @return int
+     */
+    public function deleteById($id)
+    {
+        $where[$this->pkName()] = $id;
+        return $this->where($where)->delete()->run()->count();
     }
 
     /**
@@ -479,6 +496,19 @@ class Table extends Database
     }
 
     /**
+     * Creates an UPDATE statement using the values provided.
+     *
+     * @param array $data
+     * @return $this
+     */
+    public function update($data)
+    {
+        $this->queryArgs['method'] = 'update';
+        $this->queryArgs['data'] = $data;
+        return $this;
+    }
+
+    /**
      * Return column info.
      *
      * @param string field optional field name
@@ -486,7 +516,7 @@ class Table extends Database
      */
     public function schema($field=null)
     {
-        return SlimDb::schema($this->connectionName, $this->tableName, $field);
+        return parent::schema($this->tableName, $field);
     }
 
     /**

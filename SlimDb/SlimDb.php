@@ -47,7 +47,7 @@ class SlimDb
      * @var array db schema
      *  [connection_name][db_name][table_name][field_name] => array(schema)
      */
-    static private $schema = array();
+    static protected $schema = array();
 
     /** array with executed queries */
     static private $queryLog = array();
@@ -95,16 +95,6 @@ class SlimDb
     ////////////////////////////////////////////////////////////////////
     //////////////             Configuration              //////////////
     ////////////////////////////////////////////////////////////////////
-
-    public static function setSchema($schema)
-    {
-        self::$schema = $schema;
-    }
-
-    public static function getSchema()
-    {
-        return self::$schema;
-    }
 
     /**
      * Throw and exception
@@ -334,7 +324,7 @@ class SlimDb
      * @param array $extra additional configuration data
      * @return PDOStatement object
      */
-    protected static function _run_query($connectionName, $sql, array $params = NULL, $extra = array() )
+    private static function _run_query($connectionName, $sql, array $params = NULL, $extra = array() )
     {
         if(!self::$config[$connectionName]['pdo']){
             if( !self::connect($connectionName) ){
@@ -386,7 +376,7 @@ class SlimDb
         $result = null;
         try{
             $statement = self::_run_query($connectionName, $sql, $params, $extra);
-            return new ResultSet($connectionName, $statement, $params);
+            return new ResultSet(self::Db($connectionName), $statement, $params);
         } catch (\Exception $e){
             $sql = self::_parseQuery($sql, $params);
             self::exception($e->getMessage() . " - $sql", __METHOD__);
@@ -509,7 +499,7 @@ class SlimDb
     }
 
     /**
-     * Factory method for Databse object
+     * Factory method for Database object
      */
     public static function Db($connectionName)
     {
@@ -528,7 +518,7 @@ class SlimDb
         {
             return new Table($connectionName, $table);
         }
-        SlimDb::exception("Table '{$table}' is not valid!", __METHOD__);
+        self::exception("Table '{$table}' is not valid!", __METHOD__);
     }
     
     /**
@@ -586,7 +576,6 @@ class Database
         if( method_exists($class, $method)) {
             array_unshift($args, $this->connectionName);
             return forward_static_call_array ("{$class}::{$method}", $args);
-            //return call_user_func_array(array($class, $method), $args);
         }
         SlimDb::exception("Invalid method! ({$method})", __METHOD__);
     }
@@ -599,5 +588,5 @@ class Database
         }
         SlimDb::exception("Invalid static method! ({$method})", __METHOD__);
     }
-    
+
 }
