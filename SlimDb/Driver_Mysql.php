@@ -18,13 +18,13 @@
 
 return array(
     // Initialize default driver settings after Database constructor
-    'init' => function($index){
+    'init' => function($connectionName){
         // MySQL uses a non-standard column identifier
-        self::_setWrapper($index, '`%s`');
+        self::_setWrapper($connectionName, '`%s`');
     },
     
     // Build a limit clause
-    'limit' => function( $index, $offset = 0, $limit = 0 ){
+    'limit' => function( $connectionName, $offset = 0, $limit = 0 ){
         $offset = (int) $offset;
         $limit = (int) $limit;
         if( $offset==0 && $limit==0 )
@@ -40,26 +40,31 @@ return array(
     },
     
     // Get database name
-    'dbName' => function ($index){
-        return self::query($index, "SELECT DATABASE();")->getVal();
+    'dbName' => function ($connectionName){
+        return self::query($connectionName, "SELECT DATABASE();")->getVal();
     },
     
     // List all tables from database
-    'schemaDb' => function ($index){
-        $tables = self::query($index, "SHOW TABLES")->getAll();
+    'schemaDb' => function ($connectionName){
+        $tables = self::query($connectionName, "SHOW TABLES")->getAll();
         $data = array();
         foreach($tables as $item){
-            $data[] = (string) array_shift(array_values($item));
+            $tmp = array_values($item); //Strict Standards: Only variables should be passed by reference
+            $data[] = (string) array_shift($tmp);
         }
         return $data;
     },
     
     // List all fields from table (describe table structure)
-    'schemaTable' => function ($index, $table){
+    'schemaTable' => function ($connectionName, $table){
+        $fn_parse_enum = function($text){
+            preg_match('/^enum\((.*)\)$/',$text, $tmp);
+            $tmp = str_replace("'",'',$tmp[1]);
+            return explode(',', $tmp);
+        };
         $retval = array();
-        $type = self::getConfigDriver($index);
-        $table = self::quote($index, $table);
-        $raw_data = self::query($index, "DESCRIBE {$table}")->getAll();
+        $table = self::quote($connectionName, $table);
+        $raw_data = self::query($connectionName, "DESCRIBE {$table}")->getAll();
         foreach($raw_data as $item)
         {
             $row = array();
@@ -70,7 +75,7 @@ return array(
                 $row['TYPE'] = 'integer';
             } elseif(stristr ($item['Type'],'enum')) {
                 $row['TYPE'] = 'string';
-                $row['VALUES'] = self::driverCall($type, 'parse_enum', $item['Type']);
+                $row['VALUES'] = $fn_parse_enum($item['Type']);
             } elseif(preg_match('[decimal|float|double]',$item['Type'])){
                 $row['TYPE'] = 'float';
             } elseif(preg_match('[var|char|text]',$item['Type'])){
@@ -88,22 +93,14 @@ return array(
         return $retval;
     },
     
-    // Nasty function that parse enum values
-    'parseEnum' => function($text){
-        preg_match('/^enum\((.*)\)$/',$text, $tmp);
-        $tmp = str_replace("'",'',$tmp[1]);
-        return explode(',', $tmp);
-    },
-    
     // Return query num rows
-    'numRows' => function ($index, $sql, $params){
-        $sql_count = "SELECT count(*) FROM ({$sql}) AS tmp";
-        return (int) self::query($index, $sql_count, $params)->getVal();
+    'rowCount' => function ($connectionName, $sql, $params, $statement){
+        return (int) $statement->rowCount();
     },
     
     //truncate
-    'truncate' => function($index, $table){
-        self::query($index, " TRUNCATE TABLE ?", array($table));
+    'truncate' => function($connectionName, $table){
+        self::query($connectionName, " TRUNCATE TABLE ?", array($table));
     }
 
 );

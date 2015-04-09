@@ -226,7 +226,6 @@ class Table extends Database
     private function _parseClause()
     {
         $args = func_get_args();
-
         if(count($args)==0 || empty($args[0])){
             //error!
             return array('', array());
@@ -236,10 +235,15 @@ class Table extends Database
         if(count($args)==1 && is_array($args[0])){
             $array = $params = array();
             foreach($args[0] as $field=>$clause){
-                if(is_int($field)) continue;
-                $quoted_field = $this->quote($field);
-                $array[] = strstr('%',$clause)? "{$quoted_field} LIKE ?" : "{$quoted_field} = ?";
-                $params[] = $clause;
+                if(is_int($field) && is_array($clause)){
+                    list($tmp_sql, $tmp_params) = call_user_func_array( array(&$this, '_parseClause'), $clause);
+                    $array[] = $tmp_sql;
+                    foreach($tmp_params as $p) $params[] = $p;
+                } else{
+                    $quoted_field = $this->quote($field);
+                    $array[] = strpos($clause,'%')!==false? "{$quoted_field} LIKE ?" : "{$quoted_field} = ?";
+                    $params[] = $clause;
+                }
             }
             $sql = implode(' AND ', $array);
             return array($sql, $params);
@@ -586,4 +590,5 @@ class Table extends Database
         return $this;
     }
 
+    public function Orm(){ return new Orm($this);}
 }

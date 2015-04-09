@@ -18,19 +18,19 @@
 
 return array(
     // Initialize default driver settings after Database constructor
-    'init' => function($index){
-        self::_setWrapper($index, '[%s]');
+    'init' => function($connectionName){
+        self::_setWrapper($connectionName, '[%s]');
     },
     
     // Get database filename
-    'dbName' => function ($index){
-        $row = self::query($index, "PRAGMA database_list;")->getRow();
+    'dbName' => function ($connectionName){
+        $row = self::query($connectionName, "PRAGMA database_list;")->getRow();
         return basename( $row["file"] );
     },
     
     // List all tables.
-    'schemaDb' => function ($index){
-        $tables = self::query($index, "SELECT * FROM sqlite_master WHERE type='table'")->getAll();
+    'schemaDb' => function ($connectionName){
+        $tables = self::query($connectionName, "SELECT * FROM sqlite_master WHERE type='table'")->getAll();
         $data = array();
         foreach($tables as $item){
             $data[] = (string) $item['name'];
@@ -39,10 +39,10 @@ return array(
     },
     
     // Describe table structure.
-    'schemaTable' => function ($index, $table){
+    'schemaTable' => function ($connectionName, $table){
         $retval = array();
-        $table = self::quote($index, $table);
-        $raw_data = self::query($index, "PRAGMA table_info({$table})")->getAll();
+        $table = self::quote($connectionName, $table);
+        $raw_data = self::query($connectionName, "PRAGMA table_info({$table})")->getAll();
         foreach($raw_data as $item)
         {
             $row = array();
@@ -61,8 +61,8 @@ return array(
                     $row['LENGTH'] = isset($tmp[1])? $tmp[1] : NULL;
             }
             $row['DEFAULT'] = $item['dflt_value'];
-            $row['PRIMARY'] = ($item['pk']=='1')? true : false;
-            $row['NULLABLE'] = ($item['notnull']=='1')? true : false;
+            $row['PRIMARY'] = (intval($item['pk']))? true : false;
+            $row['NULLABLE'] = (intval($item['notnull']))? false : true;
             //$row['IDENTITY'] = false; //todo...
             $retval[$item['name']] = $row;
         }
@@ -70,7 +70,7 @@ return array(
     },
     
     // Build a limit clause
-    'limit' => function( $index, $offset = 0, $limit = 0 ){
+    'limit' => function( $connectionName, $offset = 0, $limit = 0 ){
         $offset = (int) $offset;
         $limit = (int) $limit;
         if( $offset==0 && $limit==0 )
@@ -86,17 +86,17 @@ return array(
     },
     
     //return query num rows
-    'numRows' => function ($index, $sql, $params){
+    'rowCount' => function ($connectionName, $sql, $params, $statement){
         $sql_count = "SELECT count(*) FROM ({$sql}) AS tmp";
-        return (int) self::query($index, $sql_count, $params)->getVal();
+        return (int) self::query($connectionName, $sql_count, $params)->getVal();
     },
     
     //truncate
-    'truncate' => function($index, $table){
+    'truncate' => function($connectionName, $table){
         //delete all records
-        self::query($index, "DELETE FROM ?", array($table));
+        self::query($connectionName, "DELETE FROM ?", array($table));
         //reset autoincrement/identity field
-        self::query($index, "DELETE FROM SQLITE_SEQUENCE WHERE name = ?;", array($table));        
+        self::query($connectionName, "DELETE FROM SQLITE_SEQUENCE WHERE name = ?;", array($table));
     }
     
 );

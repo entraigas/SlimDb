@@ -106,7 +106,7 @@ class SlimDb
     public static function exception($message, $method='')
     {
         if( empty($method) ) $method = __CLASS__;
-        throw new \Exception("{$method} Error: {$message}");
+        throw new \Exception("Database - {$method} Error: {$message}");
     }
 
     /**
@@ -120,6 +120,7 @@ class SlimDb
         self::$config[$connectionName] = array(
             'driver' => $config['driver'],
             'getPdo' => $config['getPdo'],
+            'log' => isset($config['log'])? intval($config['log']) : 0,
             'pdo' => null,
             'cache-stmt' => array(),
         );
@@ -186,17 +187,16 @@ class SlimDb
     /**
      * Internal function. Write an entry into "queryLog"
      */
-    private static function _logQuery($connectionName=null, $log_time=NULL, $message='', $sqlParams=array())
+    private static function _logQuery($connectionName=null, $log_time=NULL, $prefix='',  $sql='', $sqlParams=array())
     {
         $time = microtime(true);
         if( is_null($connectionName) || is_null($log_time) ){
             return $time;
         }
-        if( isset(self::$config[$connectionName]['log'])
-            && self::$config[$connectionName]['log']!=true )
-        { return; }
-        $message = self::_parseQuery($message, $sqlParams);
-        self::$queryLog[] = array($time - $log_time, "{$connectionName} - {$message}");
+        if( !isset(self::$config[$connectionName]['log']) || self::$config[$connectionName]['log']==false ) return;
+        if( self::$config[$connectionName]['log']==1 && !preg_match('/^(insert|delete|update|replace)\s+/i',$sql)) return;
+        $sql = self::_parseQuery($sql, $sqlParams);
+        self::$queryLog[] = array($time - $log_time, "{$connectionName} - {$prefix} {$sql}");
     }
 
     /**
@@ -214,6 +214,7 @@ class SlimDb
         return $sql;
     }
 
+    public static function dump(){ return self::$config;}
     ////////////////////////////////////////////////////////////////////
     //////////////           Quote functions              //////////////
     ////////////////////////////////////////////////////////////////////
@@ -251,7 +252,6 @@ class SlimDb
      */
     public static function quoteColumns($connectionName, $columns)
     {
-        //return implode(', ', array_map(array($this, 'quote'), $columns));
         if( !is_array($columns) ) $columns = explode(',', $columns);
         $retval = array();
         foreach($columns as $item){
@@ -274,7 +274,7 @@ class SlimDb
         $parts = explode('.', $alias[0]);
         foreach($parts as $item){
             $item = trim($item);
-            $retval[] = strpos($item, ' ')? $item : self::quoteValue($connectionName, $item);
+            $retval[] = strpos($item, ' ')? $item : self::quoteField($connectionName, $item);
         }
         $retval =  implode('.', $retval);
         if(isset($alias[1])) $retval = $retval . " AS {$alias[1]}";
@@ -288,7 +288,7 @@ class SlimDb
      * @param string $value
      * @return string
      */
-    public static function quoteValue($connectionName, $value)
+    public static function quoteField($connectionName, $value)
     {
         //$type = self::getConfigDriver($connectionName);
         $value = trim($value);
@@ -337,7 +337,7 @@ class SlimDb
         if( empty($params) ){
             $time = self::_logQuery();
             $statement = self::$config[$connectionName]['pdo']->query($sql);
-            self::_logQuery($connectionName, $time, "[Raw query] $sql");
+            self::_logQuery($connectionName, $time, "[Raw query]", $sql);
             return $statement;
         }
 
@@ -358,7 +358,7 @@ class SlimDb
             }
         }
         $statement->execute($params);
-        self::_logQuery($connectionName, $time, "[{$message}] $sql", $params);
+        self::_logQuery($connectionName, $time, "[{$message}]", $sql, $params);
         return $statement;
     }
 
@@ -376,6 +376,7 @@ class SlimDb
         $result = null;
         try{
             $statement = self::_run_query($connectionName, $sql, $params, $extra);
+            if(isset($extra['returnStmt']) && $extra['returnStmt']==true) return $statement;
             return new ResultSet(self::Db($connectionName), $statement, $params);
         } catch (\Exception $e){
             $sql = self::_parseQuery($sql, $params);
@@ -467,7 +468,11 @@ class SlimDb
      */
     public static function dbName($connectionName)
     {
-        return self::driverCall($connectionName, 'dbName');
+        if( isset(self::$config[$connectionName]['dbName']) ){
+            return self::$config[$connectionName]['dbName'];
+        }
+        self::$config[$connectionName]['dbName'] = self::driverCall($connectionName, 'dbName');
+        return self::$config[$connectionName]['dbName'];
     }
 
     /**
@@ -498,10 +503,32 @@ class SlimDb
         return self::$schema[$connectionName]['metadata'][$tableName][$fieldName];
     }
 
+    ////////////////////////////////////////////////////////////////////
+    //////////////            Transactions                //////////////
+    ////////////////////////////////////////////////////////////////////
+
+    public static function begin($connectionName)
+    {
+        self::query($connectionName, "BEGIN");
+    }
+
+    public static function commit($connectionName)
+    {
+        self::query($connectionName, "COMMIT");
+    }
+
+    public static function rollback($connectionName)
+    {
+        self::query($connectionName, "ROLLBACK");
+    }
+
+    ////////////////////////////////////////////////////////////////////
+    //////////////           Factory methods              //////////////
+    ////////////////////////////////////////////////////////////////////
     /**
      * Factory method for Database object
      */
-    public static function Db($connectionName)
+    public static function Db($connectionName=null)
     {
         if( empty($connectionName) ){
             $connectionName = self::getDefaultConnection();

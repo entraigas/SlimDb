@@ -16,13 +16,13 @@ namespace SlimDb;
 /**
  * Orm
  * 
- * It's a micro ORM class.
+ * It's a micro Active Record class.
  * Note: compound key are not supported!
  */
 
 class Orm implements \Countable, \IteratorAggregate
 {
-    /** Object table */
+    /** Table object*/
     protected $tableObj = NULL;
 
     /** Array with row data */

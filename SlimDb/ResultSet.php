@@ -65,6 +65,10 @@ class ResultSet  implements \Iterator, \Countable
      */
     public function rewind()
     {
+        if($this->pointer>0){
+            //Nasty hack here: it's impossible to rewind a pdo stmt, must re-run the query!
+            $this->statement = $this->db->query($this->statement->queryString, $this->sqlParams, array('returnStmt'=>true));
+        }
         $this->pointer = 0;
         $this->next();
     }
@@ -109,7 +113,7 @@ class ResultSet  implements \Iterator, \Countable
             $this->rowCount = (int) $this->statement->rowCount();
         } else {
             //get the returned rows
-            $this->rowCount = (int) $this->db->driverCall('numRows', $sql, $this->sqlParams);
+            $this->rowCount = (int) $this->db->driverCall('rowCount', $sql, $this->sqlParams, $this->statement);
         }
         return $this->rowCount;
     }
